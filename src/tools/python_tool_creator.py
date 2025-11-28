@@ -1,0 +1,407 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Python Tool Creator - 从代码片段创建可复用工具
+
+允许 Agent 将常用的代码片段封装成工具，避免重复编写相同代码。
+"""
+
+import os
+import re
+import json
+from pathlib import Path
+from typing import Optional
+from smolagents import tool
+from datetime import datetime
+
+# Python 工具存储目录
+PYTHON_TOOLS_DIR = Path("src/tools/python_helpers")
+
+# 工具注册表（内存中）
+_custom_tools_registry = {}
+
+def _ensure_tools_dir():
+    """确保工具目录存在"""
+    PYTHON_TOOLS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+@tool
+def create_python_helper(
+    tool_name: str,
+    description: str,
+    function_body: str,
+    parameters: str = "{}",
+    return_type: str = "str"
+) -> str:
+    """
+    Create a reusable Python helper tool from code snippet.
+    
+    This allows you to convert frequently used code patterns into reusable tools,
+    so you don't have to write the same code repeatedly.
+    
+    Args:
+        tool_name: Name of the helper tool (e.g., "read_il_file_content")
+        description: What this tool does (e.g., "Read IL file and return content as string")
+        function_body: Python code for the function body (without def line)
+        parameters: JSON string defining parameters, e.g., '{"file_path": "str"}'
+        return_type: Return type annotation (default: "str")
+        
+    Returns:
+        Success message with usage example
+        
+    Example:
+        create_python_helper(
+            tool_name="read_il_file_content",
+            description="Read IL file and return its content as a string",
+            function_body='''
+    with open(file_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+    return content
+''',
+            parameters='{"file_path": "str"}',
+            return_type="str"
+        )
+    """
+    try:
+        _ensure_tools_dir()
+        
+        # 解析参数
+        params_dict = json.loads(parameters)
+        
+        # 构造参数列表
+        param_list = []
+        for param_name, param_type in params_dict.items():
+            param_list.append(f"{param_name}: {param_type}")
+        params_str = ", ".join(param_list)
+        
+        # 构造完整的工具代码
+        tool_code = f'''#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Auto-generated Python helper tool
+Created: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+"""
+
+from smolagents import tool
+
+@tool
+def {tool_name}({params_str}) -> {return_type}:
+    """
+    {description}
+    
+    Args:
+{_generate_param_docs(params_dict)}
+        
+    Returns:
+        {return_type}: Result of the operation
+    """
+{_indent_code(function_body, 4)}
+'''
+        
+        # 保存到文件
+        tool_file = PYTHON_TOOLS_DIR / f"{tool_name}.py"
+        with open(tool_file, 'w', encoding='utf-8') as f:
+            f.write(tool_code)
+        
+        # 动态加载工具
+        success = _load_tool_from_file(tool_file, tool_name)
+        
+        if success:
+            usage_example = f"{tool_name}({', '.join(f'{k}=...' for k in params_dict.keys())})"
+            return f"""✅ Python helper tool '{tool_name}' created successfully!
+
+📁 File: {tool_file}
+📝 Description: {description}
+
+💡 Usage (Use as Agent Tool - Recommended):
+   result = {usage_example}
+   
+   ✅ The tool is registered and available immediately!
+   ✅ Just call it directly - no import needed!
+   ✅ Use as Agent tool, not in code execution blocks with import!
+
+⚠️  IMPORTANT: 
+   - DO NOT import in code execution: from src.tools.python_helpers.{tool_name} import ...
+   - USE directly as Agent tool: {usage_example}
+   - Python helpers are Agent tools, not regular Python imports!
+
+🔄 The tool is registered and available immediately!
+"""
+        else:
+            return f"⚠️ Tool file created at {tool_file}, but failed to load dynamically. Restart may be required."
+            
+    except json.JSONDecodeError as e:
+        return f"❌ Invalid parameters JSON: {e}"
+    except Exception as e:
+        return f"❌ Failed to create tool: {e}"
+
+
+@tool
+def list_python_helpers() -> str:
+    """
+    List all custom Python helper tools.
+    
+    Returns:
+        List of available Python helper tools with descriptions
+    """
+    try:
+        _ensure_tools_dir()
+        
+        tool_files = sorted(PYTHON_TOOLS_DIR.glob("*.py"))
+        
+        if not tool_files:
+            return "📦 No Python helper tools found.\n\n💡 Use create_python_helper() to create your first tool!"
+        
+        result = f"📦 Available Python Helper Tools ({len(tool_files)}):\n\n"
+        
+        for i, tool_file in enumerate(tool_files, 1):
+            # 读取文件获取描述
+            try:
+                with open(tool_file, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    # 提取函数文档字符串
+                    match = re.search(r'"""(.*?)"""', content, re.DOTALL)
+                    if match:
+                        desc_lines = match.group(1).strip().split('\n')
+                        desc = desc_lines[0] if desc_lines else "No description"
+                    else:
+                        desc = "No description"
+            except:
+                desc = "No description"
+            
+            result += f"{i}. {tool_file.stem}\n"
+            result += f"   └─ {desc}\n"
+        
+        result += f"\n💡 Use the tool name directly to call it"
+        return result
+        
+    except Exception as e:
+        return f"❌ Error listing tools: {e}"
+
+
+@tool
+def update_python_helper(tool_name: str, function_body: str) -> str:
+    """
+    Update an existing Python helper tool's function body.
+    
+    Args:
+        tool_name: Name of the tool to update
+        function_body: New function body code
+        
+    Returns:
+        Success message
+    """
+    try:
+        tool_file = PYTHON_TOOLS_DIR / f"{tool_name}.py"
+        
+        if not tool_file.exists():
+            return f"❌ Tool '{tool_name}' not found. Use create_python_helper() to create it first."
+        
+        # 读取现有文件
+        with open(tool_file, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        # 查找函数体部分并替换
+        # 匹配 def 行之后到文件结尾的内容
+        pattern = r'(def\s+\w+\([^)]*\)\s*->\s*\w+:\s*""".*?""")(.*)'
+        match = re.search(pattern, content, re.DOTALL)
+        
+        if not match:
+            return f"❌ Failed to parse tool file structure"
+        
+        # 替换函数体
+        new_content = content[:match.end(1)] + '\n' + _indent_code(function_body, 4)
+        
+        # 保存
+        with open(tool_file, 'w', encoding='utf-8') as f:
+            f.write(new_content)
+        
+        # 重新加载
+        _load_tool_from_file(tool_file, tool_name)
+        
+        return f"✅ Tool '{tool_name}' updated successfully!\n💡 Changes take effect immediately."
+        
+    except Exception as e:
+        return f"❌ Failed to update tool: {e}"
+
+
+@tool
+def delete_python_helper(tool_name: str) -> str:
+    """
+    Delete a Python helper tool.
+    
+    Args:
+        tool_name: Name of the tool to delete
+        
+    Returns:
+        Success message
+    """
+    try:
+        tool_file = PYTHON_TOOLS_DIR / f"{tool_name}.py"
+        
+        if not tool_file.exists():
+            return f"❌ Tool '{tool_name}' not found"
+        
+        # 删除文件
+        tool_file.unlink()
+        
+        # 从注册表移除
+        if tool_name in _custom_tools_registry:
+            del _custom_tools_registry[tool_name]
+        
+        return f"✅ Tool '{tool_name}' deleted successfully"
+        
+    except Exception as e:
+        return f"❌ Failed to delete tool: {e}"
+
+
+@tool
+def view_python_helper_code(tool_name: str) -> str:
+    """
+    View the source code of a Python helper tool.
+    
+    Args:
+        tool_name: Name of the tool to view
+        
+    Returns:
+        Source code of the tool
+    """
+    try:
+        tool_file = PYTHON_TOOLS_DIR / f"{tool_name}.py"
+        
+        if not tool_file.exists():
+            return f"❌ Tool '{tool_name}' not found"
+        
+        with open(tool_file, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        return f"📄 Source code of '{tool_name}':\n\n```python\n{content}\n```"
+        
+    except Exception as e:
+        return f"❌ Failed to read tool: {e}"
+
+
+# ============================================================================
+# 辅助函数
+# ============================================================================
+
+def _generate_param_docs(params_dict: dict) -> str:
+    """生成参数文档"""
+    docs = []
+    for param_name, param_type in params_dict.items():
+        docs.append(f"        {param_name} ({param_type}): Description of {param_name}")
+    return '\n'.join(docs)
+
+
+def _indent_code(code: str, spaces: int) -> str:
+    """给代码添加缩进"""
+    indent = ' ' * spaces
+    lines = code.strip().split('\n')
+    return '\n'.join(indent + line if line.strip() else '' for line in lines)
+
+
+def _load_tool_from_file(tool_file: Path, tool_name: str) -> bool:
+    """
+    动态加载工具到 Agent（使用 importlib 而不是 exec）
+    
+    Args:
+        tool_file: 工具文件路径
+        tool_name: 工具名称
+        
+    Returns:
+        是否加载成功
+    """
+    try:
+        import sys
+        import importlib.util
+        
+        # 构造模块名
+        module_name = f"src.tools.python_helpers.{tool_name}"
+        
+        # 动态导入模块
+        spec = importlib.util.spec_from_file_location(module_name, tool_file)
+        if spec is None or spec.loader is None:
+            return False
+        
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
+        spec.loader.exec_module(module)
+        
+        # 获取工具函数
+        if not hasattr(module, tool_name):
+            return False
+        
+        tool_func = getattr(module, tool_name)
+        _custom_tools_registry[tool_name] = tool_func
+        
+        # 尝试注册到 Agent（如果 Agent 已初始化）
+        try:
+            from .tool_manager import _agent_instance
+            
+            if _agent_instance is not None:
+                # 1. 注册到 Agent 的工具字典
+                _agent_instance.tools[tool_name] = tool_func
+                
+                # 2. 尝试添加到代码执行器的 additional_functions，使其在代码执行块中可用
+                try:
+                    # 检查是否有 python_executor 属性（CodeAgent使用python_executor）
+                    if hasattr(_agent_instance, 'python_executor') and _agent_instance.python_executor is not None:
+                        executor = _agent_instance.python_executor
+                        # 访问 additional_functions 字典并添加工具
+                        if hasattr(executor, 'additional_functions') and executor.additional_functions is not None:
+                            # 确保 additional_functions 是一个字典，而不是 None
+                            if isinstance(executor.additional_functions, dict):
+                                executor.additional_functions[tool_name] = tool_func
+                                # 重要：需要更新 static_tools，因为函数检查时使用的是 static_tools
+                                # static_tools 在 send_tools 时会被更新，但我们需要手动更新
+                                if hasattr(executor, 'static_tools') and executor.static_tools is not None:
+                                    if isinstance(executor.static_tools, dict):
+                                        executor.static_tools[tool_name] = tool_func
+                                print(f"✅ Dynamically loaded tool '{tool_name}' into Agent (both tools and code executor)")
+                            else:
+                                print(f"✅ Dynamically loaded tool '{tool_name}' into Agent (tools only, additional_functions is not a dict: {type(executor.additional_functions)})")
+                        else:
+                            print(f"✅ Dynamically loaded tool '{tool_name}' into Agent (tools only, additional_functions not found or None)")
+                    else:
+                        print(f"✅ Dynamically loaded tool '{tool_name}' into Agent (tools only, python_executor not found)")
+                except Exception as e:
+                    # 如果无法添加到代码执行器，至少确保工具已注册
+                    print(f"✅ Dynamically loaded tool '{tool_name}' into Agent (tools only, failed to add to executor: {e})")
+                
+                return True
+            else:
+                # Agent 未初始化，但工具已保存，重启后会自动加载
+                return True
+        except ImportError:
+            # tool_manager 不存在，但工具已保存
+            return True
+        
+    except Exception as e:
+        print(f"Warning: Failed to load tool dynamically: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+def load_all_python_helpers():
+    """
+    启动时加载所有 Python helper 工具
+    应该在 agent_factory.py 中调用
+    """
+    try:
+        _ensure_tools_dir()
+        
+        tool_files = PYTHON_TOOLS_DIR.glob("*.py")
+        loaded_count = 0
+        
+        for tool_file in tool_files:
+            tool_name = tool_file.stem
+            if _load_tool_from_file(tool_file, tool_name):
+                loaded_count += 1
+        
+        if loaded_count > 0:
+            print(f"✅ Loaded {loaded_count} Python helper tool(s)")
+        
+    except Exception as e:
+        print(f"Warning: Failed to load Python helpers: {e}")
+

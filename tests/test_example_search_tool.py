@@ -1,0 +1,190 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Test Example Code Search Tool
+
+Usage:
+python test_example_search_tool.py [options]
+
+Options:
+    -h, --help          Show help information
+    -k, --keyword      Specify search keyword for testing
+    -t, --test         Run specified test case
+    -a, --all          Run all tests (default behavior)
+    -v, --verbose      Verbose output mode
+"""
+
+import sys
+import argparse
+from pathlib import Path
+from typing import Dict, Any, List, Tuple
+
+# Add project root directory to Python path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from src.tools.example_search_tool import code_example_search, list_examples, search_examples
+
+# Test case data
+TEST_CASES = [
+    {
+        'name': 'layout',
+        'query': 'layout',
+        'expected_file': 'layout_generation_example.py',
+        'description': 'Test layout search'
+    },
+    {
+        'name': 'schematic',
+        'query': 'schematic',
+        'expected_file': 'schematic_generation_example.py',
+        'description': 'Test schematic search'
+    },
+    {
+        'name': 'dual_ring',
+        'query': 'dual ring',
+        'expected_file': 'dual_ring_layout_example.py',
+        'description': 'Test dual ring search'
+    },
+    {
+        'name': 'chinese',
+        'query': 'schematic',
+        'expected_file': 'schematic_generation_example.py',
+        'description': 'Test Chinese keyword'
+    }
+]
+
+def run_single_test(test_case: Dict[str, str], verbose: bool = False) -> bool:
+    """Run single test case"""
+    if verbose:
+        print(f"\n{test_case['description']}:")
+        print(f"Search keyword: {test_case['query']}")
+    
+    try:
+        result = code_example_search(test_case['query'])
+        if verbose:
+            print("\nSearch results:")
+            print(result)
+        
+        assert isinstance(result, str) and test_case['expected_file'] in result, \
+            f"Should find file {test_case['expected_file']}"
+        
+        if verbose:
+            print(f"✅ Test passed: {test_case['name']}")
+        return True
+        
+    except AssertionError as e:
+        print(f"❌ Test failed ({test_case['name']}): {e}")
+        return False
+    except Exception as e:
+        print(f"❌ Test error ({test_case['name']}): {e}")
+        return False
+
+def test_list_examples(verbose: bool = False) -> bool:
+    """Test list examples files functionality"""
+    if verbose:
+        print("\nTesting list examples files:")
+    
+    try:
+        examples = list_examples()
+        if verbose:
+            print(f"Found {len(examples)} example files:")
+            for example in examples:
+                print(f"  - {example}")
+        
+        assert len(examples) >= 3, "Should have at least 3 example files"
+        return True
+        
+    except AssertionError as e:
+        print(f"❌ Test failed (list_examples): {e}")
+        return False
+    except Exception as e:
+        print(f"❌ Test error (list_examples): {e}")
+        return False
+
+def test_search_examples(verbose: bool = False) -> bool:
+    """Test search examples functionality"""
+    if verbose:
+        print("\nTesting search examples:")
+    
+    try:
+        results = search_examples("layout")
+        if verbose:
+            print(f"Search 'layout' found {len(results)} results:")
+            for result in results:
+                print(f"  - {result}")
+        
+        assert any(isinstance(r, dict) and "layout" in str(r.get("file", "")).lower() 
+                  for r in results), "Should find files related to layout"
+        return True
+        
+    except AssertionError as e:
+        print(f"❌ Test failed (search_examples): {e}")
+        return False
+    except Exception as e:
+        print(f"❌ Test error (search_examples): {e}")
+        return False
+
+def run_keyword_test(keyword: str, verbose: bool = False) -> bool:
+    """Run search test for specified keyword"""
+    if verbose:
+        print(f"\nSearching with keyword '{keyword}':")
+    
+    try:
+        result = code_example_search(keyword)
+        print("\nSearch results:")
+        print(result)
+        return True
+        
+    except Exception as e:
+        print(f"❌ Search error: {e}")
+        return False
+
+def main():
+    """Main function, handles command line arguments and executes corresponding actions"""
+    parser = argparse.ArgumentParser(description="Example code search tool test program")
+    parser.add_argument('-k', '--keyword', help='Specify search keyword for testing')
+    parser.add_argument('-t', '--test', help='Run specified test case')
+    parser.add_argument('-a', '--all', action='store_true', help='Run all tests (default behavior)')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Verbose output mode')
+    
+    args = parser.parse_args()
+    
+    # If no options are specified, default to running all tests
+    if not (args.keyword or args.test or args.all):
+        args.all = True
+    
+    success = True
+    
+    if args.keyword:
+        success = run_keyword_test(args.keyword, args.verbose) and success
+    
+    if args.test:
+        # Find matching test case
+        test_case = next((t for t in TEST_CASES if t['name'] == args.test), None)
+        if test_case:
+            success = run_single_test(test_case, args.verbose) and success
+        else:
+            print(f"❌ Unknown test case: {args.test}")
+            print("Available test cases:", ", ".join(t['name'] for t in TEST_CASES))
+            success = False
+    
+    if args.all:
+        if args.verbose:
+            print("\nRunning all tests...")
+        
+        # Test basic functionality
+        success = test_list_examples(args.verbose) and success
+        success = test_search_examples(args.verbose) and success
+        
+        # Run all test cases
+        for test_case in TEST_CASES:
+            success = run_single_test(test_case, args.verbose) and success
+    
+    if success:
+        print("\n✅ Test passed")
+    else:
+        print("\n❌ Test failed")
+    
+    return 0 if success else 1
+
+if __name__ == "__main__":
+    sys.exit(main())

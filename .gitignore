@@ -1,0 +1,149 @@
+# Runtime output directory (logs, generated code, screenshots)
+output/
+# PEX (parasitic extraction) related files
+*.phdb/
+*.pdb/
+*.svdb/
+*_pex/
+pex_output/
+
+# Simulation result files
+*.fsdb
+*.vcd
+*.wlf
+*.saif
+*.sdf
+
+# Layout files
+*.gds
+*.gds2
+*.oas
+*.lef
+*.def
+
+# Netlist files
+*.sp
+*.spice
+*.net
+*.v
+*.vhdl
+*.vhd
+
+# Temporary files and cache
+*.tmp
+*.temp
+*.cache
+*.bak
+*.swp
+*.swo
+*~
+
+# Log files are kept, not ignored
+# logs/
+# *.log
+*.out
+*.err
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Compressed files
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# Binary files
+*.bin
+*.dat
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Document temporary files
+*.docx~
+*.xlsx~
+*.pptx~
+
+# IDE and editor files
+.vscode/
+.idea/
+*.sublime-*
+.atom/
+.brackets.json
+
+# Operating system generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Python related
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environment
+.env
+.env*
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Project-specific ignore files
+# If you have specific files to ignore, add them here
+ 
+# Ignore large files in output directory
+output/pex/
+output/drc/
+output/drc_180/
+*.rules
+
+# Allow screenshots folder
+!output/screenshots/
+virtuoso_setup.il
+
+# User profile files (privacy)
+user_profiles/*_profile.md
+!user_profiles/example_profile.md
+
+# Knowledge base - allow baseline AI prompts, ignore runtime additions
+knowledge_base/*.md
+!knowledge_base/system_prompt.md
+!knowledge_base/skill_knowledge.md
+
+# Claude instructions (personal notes)
+claude_read.md
+
+# logs files
+logs/

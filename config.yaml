@@ -1,0 +1,81 @@
+# =============================================================================
+# AMS-IO-Agent Configuration
+# =============================================================================
+# This file is safe to commit to GitHub - no sensitive data here!
+# All API keys, URLs, and model IDs are in .env (gitignored)
+
+# -----------------------------------------------------------------------------
+# MODEL SETTINGS
+# -----------------------------------------------------------------------------
+model:
+  # Active model: Any model configured in .env
+  # You can use EITHER:
+  #   - Model name (env prefix): "claude", "qwen", "wandou"
+  #   - MODEL_ID (exact): "claude-sonnet-4-20250514", "qwen3-vl-plus", "gpt-4"
+  # Run: python src/app/utils/config_utils.py to see all available options
+  active: "deepseek"
+
+  # Creativity level: 0.0 = deterministic, 1.0 = balanced, 2.0 = very creative
+  temperature: 1.0
+
+# -----------------------------------------------------------------------------
+# MODEL CONFIGURATION
+# -----------------------------------------------------------------------------
+# Models are now auto-discovered from .env file!
+#
+# To add a model, just add these 3 variables to .env:
+#   MODELNAME_API_BASE=https://api.provider.com/v1
+#   MODELNAME_MODEL_ID=model-id
+#   MODELNAME_API_KEY=your_api_key
+
+# -----------------------------------------------------------------------------
+# INTERFACE SETTINGS
+# -----------------------------------------------------------------------------
+interface:
+  # How to interact with the agent
+  # "cli" = command line interface (terminal)
+  # "webui" = web browser interface (Gradio UI)
+  mode: "cli"
+
+  # Save conversation logs to files
+  logging: true
+
+  # Show detailed code execution blocks in output
+  show_code: false
+
+# -----------------------------------------------------------------------------
+# PROMPT SETTINGS (Optional)
+# -----------------------------------------------------------------------------
+prompt:
+  # Auto-load a specific prompt from AMS-IO-Bench or user_prompt folder
+  # Examples: "IO_28nm_3x3_single_ring_digital", "IO_180nm_6x6_double_ring_mixed"
+  # Leave as null for interactive input
+  key: null
+
+  # Or provide direct prompt text (overrides key)
+  text: null
+
+  # Directory containing prompt files (YAML/JSON/TXT)
+  config_path: "user_prompt"
+
+# -----------------------------------------------------------------------------
+# RAMIC BRIDGE SETTINGS (Virtuoso Communication)
+# -----------------------------------------------------------------------------
+ramic_bridge:
+  # RAMIC server address (null = use RB_HOST environment variable)
+  host: null
+
+  # RAMIC server port (null = use RB_PORT environment variable)
+  port: null
+
+# -----------------------------------------------------------------------------
+# ADVANCED SETTINGS (Usually don't need to change)
+# -----------------------------------------------------------------------------
+tools:
+  # Path to tools configuration file
+  config_path: "config/tools_config.yaml"
+
+system:
+  # Agent architecture: "master_with_workers" enables multi-agent system
+  agent_type: "master_with_workers"
+  multi_agent: true

@@ -1,0 +1,95 @@
+# Tool Configuration for AI Agent
+# This file defines which tools are available to the agent
+
+# Core tools (always loaded)
+core_tools:
+  # Tool management (meta-tools)
+  - list_registered_tools
+  - get_tool_info
+  - check_tool_availability
+  - export_tools_snapshot
+  - get_tools_summary
+  
+  # Knowledge loading (dynamic prompt loading)
+  - scan_knowledge_base
+  - search_knowledge
+  - load_domain_knowledge
+  - refresh_knowledge_index
+  - add_knowledge_directory
+  - export_knowledge_index
+  
+  # System health check
+  - run_health_check
+  - check_virtuoso_connection
+  - quick_diagnostic
+
+# Optional tool groups (can be enabled/disabled)
+tool_groups:
+  virtuoso:
+    enabled: true
+    tools:
+      - run_il_file
+      - list_il_files
+      - run_il_with_screenshot
+      - clear_all_figures_in_window
+      - screenshot_current_window
+  
+  skill_tools:
+    enabled: true
+    tools:
+      - list_skill_tools
+      - run_skill_tool
+      - create_skill_tool
+      - update_skill_tool
+      - delete_skill_tool
+  
+  python_helpers:
+    enabled: true
+    tools:
+      - create_python_helper
+      - list_python_helpers
+      - update_python_helper
+      - delete_python_helper
+      - view_python_helper_code
+  
+  verification:
+    enabled: true
+    tools:
+      - run_drc
+      - run_lvs
+      - run_pex
+  
+  io_ring:
+    enabled: true
+    tools:
+      - generate_io_ring_schematic
+      - validate_io_ring_config
+      - generate_io_ring_layout
+  
+  user_profile:
+    enabled: true
+    tools:
+      - update_user_profile
+  
+  tool_statistics:
+    enabled: true
+    tools:
+      - get_tool_statistics
+      - get_top_used_tools
+      - get_problematic_tools
+      - generate_tool_usage_report
+      - reset_tool_statistics
+  
+  task_history:
+    enabled: true
+    tools:
+      - view_recent_tasks
+      - analyze_task_failures
+      - get_task_summary
+      - compare_with_tool_stats
+
+# Advanced: Tool loading strategy
+loading_strategy:
+  mode: "eager"  # "eager" (load all) or "lazy" (load on-demand)
+  auto_discover: false  # Automatically discover new tools in src/tools/
+

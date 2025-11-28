@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(nul)",
+      "Bash(powershell -ExecutionPolicy Bypass -File \"D:\\AMS-IO-Agent\\setup\\setup_powershell.ps1\")",
+      "Bash(dir /B D:AMS-IO-AgentKB_Capacitor)",
+      "Bash(dir /B D:AMS-IO-AgentKB_IO_RING)",
+      "Bash(dir /B D:AMS-IO-Agentknowledge_base)",
+      "Bash(mkdir:*)",
+      "Bash(python:*)",
+      "Bash(uv pip install:*)",
+      "Bash(uv pip list:*)",
+      "Bash(dir /B D:AMS-IO-Agentsrcapputils*.py)",
+      "Bash(dir /B /S D:AMS-IO-AgentKnowledge_Base)",
+      "Bash(test:*)",
+      "Bash(dir:*)",
+      "Bash(tree:*)",
+      "Bash(findstr:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -1,0 +1,17 @@
+# AI Assistant Core Dependencies
+smolagents[toolkit]
+smolagents[openai]
+
+# Environment Variable Management
+python-dotenv
+
+# Configuration Management
+pyyaml
+
+# Virtuoso Environment Interaction
+skillbridge
+
+# Optional: Web Interface Support
+smolagents[gradio]
+
+openpyxl
