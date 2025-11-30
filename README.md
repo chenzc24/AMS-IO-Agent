@@ -23,6 +23,7 @@ AMS-IO-Agent leverages large language models to automate complex analog and mixe
 ### Prerequisites
 
 - Python 3.8 or higher
+- `csh` (C Shell) - usually pre-installed on Linux/macOS
 - Cadence Virtuoso (for actual design execution)
 - API key for supported LLM providers (Claude, OpenAI, DeepSeek, etc.)
 
@@ -34,10 +35,51 @@ AMS-IO-Agent leverages large language models to automate complex analog and mixe
    cd AMS-IO-Agent
    ```
 
-2. **Run the setup script:**
+2. **Run the quick setup script (Recommended):**
+   
+   **For Linux/macOS (csh):**
+   ```csh
+   ./quick_start.csh
+   ```
+   
+   **For Windows (PowerShell - Recommended):**
+   ```powershell
+   .\quick_start.ps1
+   ```
+   
+   **For Windows (CMD):**
+   ```cmd
+   quick_start.bat
+   ```
+   
+   This one-command script will:
+   - ✅ Automatically fix executable permissions (Linux/macOS)
+   - ✅ Create Python virtual environment
+   - ✅ Install all dependencies
+   - ✅ Generate configuration files
+   - ✅ Set up Virtuoso integration
+   
+   **Alternative - Manual Setup:**
+   
+   **Linux/macOS:**
    ```bash
-   cd setup
-   source setup.csh
+   ./setup/setup.csh
+   ```
+   
+   **Windows PowerShell:**
+   ```powershell
+   .\setup\setup_powershell.ps1
+   ```
+   
+   **Windows CMD:**
+   ```cmd
+   setup\setup_cmd.bat
+   ```
+   
+   **Troubleshooting:** If you encounter "Permission denied" error (Linux/macOS):
+   ```csh
+   chmod +x quick_start.csh setup/*.csh
+   ./quick_start.csh
    ```
 
    The setup script will:
@@ -192,7 +234,7 @@ AMS-IO-Agent/
 | Module | Purpose |
 |--------|---------|
 | `schematic_generator.py` | Generate SKILL code for schematics |
-| `json_validator.py` | Validate IO ring JSON configurations |
+| `json_validator.py` | Validate intent graph files |
 
 ## Workflows
 
