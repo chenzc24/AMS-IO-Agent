@@ -385,13 +385,13 @@ def generate_layout_from_json(json_file: str, output_file: str = "generated_layo
                 x, y = filler["position"]
                 orientation = filler["orientation"]
                 # Support both device and device_type fields (180nm uses device_type)
-                device = filler.get("device") or filler.get("device_type", "PFILLER10")
+                device = filler.get("device", "PFILLER10")
                 name = filler["name"]
                 lib = ring_config.get("library_name", generator.config.get("library_name", "tpd018bcdnv5"))
                 view = filler.get("view_name", ring_config.get("view_name", "layout"))
                 skill_commands.append(f'dbCreateParamInstByMasterName(cv "{lib}" "{device}" "{view}" "{name}" list({x} {y}) "{orientation}")')
             # Skip blank types - they are for visualization only
-    
+  
     skill_commands.append("")
     
     # 5. Digital IO features

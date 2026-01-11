@@ -9,7 +9,7 @@ from typing import List, Dict, Tuple
 from ..T28.inner_pad_handler import InnerPadHandler
 from ..position_calculator import PositionCalculator
 from ..voltage_domain import VoltageDomainHandler
-
+from .auto_filler import get_corner_domain
 
 class SkillGeneratorT180:
     """SKILL Script Generator for T180 process node"""
@@ -204,7 +204,7 @@ class SkillGeneratorT180:
         # Place vias and connect to configuration lines for digital power pads
         pad_height = ring_config.get("pad_height", 120)
         for pad in all_digital_pads:
-            device_type = pad.get("device") or pad.get("device_type", "")
+            device_type = pad.get("device", "")
             if device_type in ["PVDD1CDG", "PVSS1CDG"]:  # Digital power pads
                 x, y = pad["position"]
                 orient = pad["orientation"]
@@ -355,7 +355,7 @@ class SkillGeneratorT180:
             elif orient == "R270":  # left edge pad
                 pin_pos = f'list({x - 70} {y - 40})'
                 justification, pin_orient = "centerRight", "R0"
-            
+           
             skill_commands.append(f'dbCreateLabel(cv list("METAL6" "pin") {pin_pos} "{name}" "{justification}" "{pin_orient}" "roman" 10)')
             
             # Create core label for voltage domain components
@@ -428,7 +428,6 @@ class SkillGeneratorT180:
         return skill_commands
 
     def generate_psub2(self, outer_pads: List[dict], corners: List[dict], ring_config: dict) -> List[str]:
-        """Generate PSUB2 layer for 180nm process"""
         chip_width = ring_config.get("chip_width", 0)
         chip_height = ring_config.get("chip_height", 0)
         pad_width = ring_config.get("pad_width", 80)
@@ -437,105 +436,204 @@ class SkillGeneratorT180:
         if not outer_pads:
             return skill_commands
         skill_commands.append('; --- PSUB2 edge rectangles and corner polygons')
-        pad_w = ring_config.get("pad_width", 80)
-        pad_h = ring_config.get("pad_height", 120)
 
         for pads in outer_pads:
-            # Skip certain device types for PSUB2
-            device = pads.get("device", pads.get("device_type", ""))
-            if device == "PVSS1CDG" or device == "PDDW0412SCDG":
+            if pads.get("device") == "PVSS1CDG" or pads.get("device") == "PDDW0412SCDG":
                 continue
             xs = pads["position"][0]
             ys = pads["position"][1]
             orient = pads["orientation"]
-            h_offset = 1.5
-            vl_offset = 82.5
-            vh_offset = 115
+
+            # the first type inside_pad rectangles offsets (relative to pad edges)
+            horizontal_offset = 1.5
+            vertical_low_offset = 82.5
+            vertical_high_offset = 115  
             # pads PSUB2
             if orient == "R0":
                 # bottom edge pads
-                x1 = xs + h_offset
-                y1 = ys + vl_offset
-                x2 = xs + pad_w - h_offset
-                y2 = ys + vh_offset
+                x1 = xs + horizontal_offset
+                y1 = ys + vertical_low_offset
+                x2 = xs + pad_width - horizontal_offset
+                y2 = ys + vertical_high_offset
             elif orient == "R90":
                 # right edge pads
-                x1 = xs - vl_offset
-                y1 = ys + h_offset
-                x2 = xs - vh_offset
-                y2 = ys + pad_w - h_offset
+                x1 = xs - vertical_low_offset
+                y1 = ys + horizontal_offset
+                x2 = xs - vertical_high_offset
+                y2 = ys + pad_width - horizontal_offset
             elif orient == "R180":
                 # top edge pads
-                x1 = xs - h_offset
-                y1 = ys - vl_offset
-                x2 = xs - pad_w + h_offset
-                y2 = ys - vh_offset
-            elif orient == "R270":
-                # left edge pads
-                x1 = xs + vl_offset
-                y1 = ys - h_offset
-                x2 = xs + vh_offset
-                y2 = ys - pad_w + h_offset
+                x1 = xs - horizontal_offset
+                y1 = ys - vertical_low_offset
+                x2 = xs - pad_width + horizontal_offset
+                y2 = ys - vertical_high_offset
+            else:  # left edge pads
+                x1 = xs +  vertical_low_offset
+                y1 = ys - horizontal_offset
+                x2 = xs + vertical_high_offset
+                y2 = ys - pad_width + horizontal_offset
             skill_commands.append(f'dbCreateRect(cv list("PSUB2" "drawing") list(list({x1} {y1}) list({x2} {y2})))')
-        
-        # Corner PSUB2 polygons
-        for corner in corners:
-            x, y = corner["position"]
-            orient = corner["orientation"]
-            corner_size = ring_config.get("corner_size", 130)
-            
-            if orient == "R0":  # Bottom-left corner
-                pts = f'list(list({x} {y + 94.5}) list({x + 127} {y + 94.5}) list({x + 127} {y + 120}) list({x + 120} {y + 120}) list({x + 120} {y + 127}) list({x + 94.5} {y + 127}) list({x + 94.5} {y + corner_size}) list({x} {y + corner_size}))'
-            elif orient == "R90":  # Bottom-right corner
-                pts = f'list(list({x - 94.5} {y}) list({x - 127} {y}) list({x - 127} {y + 94.5}) list({x - 120} {y + 94.5}) list({x - 120} {y + 127}) list({x - 94.5} {y + 127}) list({x - 94.5} {y + corner_size}) list({x} {y + corner_size}))'
-            elif orient == "R180":  # Top-right corner
-                pts = f'list(list({x} {y - 94.5}) list({x - 127} {y - 94.5}) list({x - 127} {y - 120}) list({x - 120} {y - 120}) list({x - 120} {y - 127}) list({x - 94.5} {y - 127}) list({x - 94.5} {y - corner_size}) list({x} {y - corner_size}))'
-            elif orient == "R270":  # Top-left corner
-                pts = f'list(list({x + 94.5} {y}) list({x + 127} {y}) list({x + 127} {y - 94.5}) list({x + 120} {y - 94.5}) list({x + 120} {y - 127}) list({x + 94.5} {y - 127}) list({x + 94.5} {y - corner_size}) list({x} {y - corner_size}))'
+        # Corner polygons: create small placeholder polygons around each corner position
+        for i, corner in enumerate(corners):
+            pos = corner.get("position")
+            if not pos or not isinstance(pos, (list, tuple)):
+                continue
+            cx, cy = pos[0], pos[1]
+            offset_1 = 94.5
+            offset_2 = 127
+            offset_3 = 120
+            if corner["orientation"] == "R0":
+                xx1, yy1 = cx + offset_1, cy + offset_2
+                xx2, yy2 = cx + offset_3, cy + offset_2
+                xx3, yy3 = cx + offset_2, cy + offset_1
+                xx4, yy4 = cx + offset_2, cy + offset_3
+            elif corner["orientation"] == "R90":
+                xx1, yy1 = cx - offset_1, cy + offset_2
+                xx2, yy2 = cx - offset_3, cy + offset_2
+                xx3, yy3 = cx - offset_2, cy + offset_1
+                xx4, yy4 = cx - offset_2, cy + offset_3
+            elif corner["orientation"] == "R180":
+                xx1, yy1 = cx - offset_1, cy - offset_2
+                xx2, yy2 = cx - offset_3, cy - offset_2
+                xx3, yy3 = cx - offset_2, cy - offset_1
+                xx4, yy4 = cx - offset_2, cy - offset_3
+            elif corner["orientation"] == "R270":
+                xx1, yy1 = cx + offset_1, cy - offset_2
+                xx2, yy2 = cx + offset_3, cy - offset_2
+                xx3, yy3 = cx + offset_2, cy - offset_1
+                xx4, yy4 = cx + offset_2, cy - offset_3
             else:
                 continue
-            
-            skill_commands.append(f'dbCreatePolygon(cv list("PSUB2" "drawing") {pts})')
+            # Default polygon: a pentagon around corner center — user can replace points with exact ones
+            pts_var = f'corner_pts_{i}'
+            skill_commands.append(f'; Polygon placeholder for corner {corner.get("name", i)} at ({cx}, {cy})')
+            skill_commands.append(f'{pts_var} = list(')
+            skill_commands.append(f'  list({xx1} {yy1})')
+            skill_commands.append(f'  list({xx2} {yy2})')
+            skill_commands.append(f'  list({xx4} {yy4})')
+            skill_commands.append(f'  list({xx3} {yy3})')
+            skill_commands.append(')')
+            skill_commands.append(f'dbCreatePolygon(cv list("PSUB2" "drawing") {pts_var})')
+        # 4 edge rectangles
+        placement_order = self.config.get("placement_order", "counterclockwise")        
+        # Sort components by position
+        sorted_components = self.position_calculator.sort_components_by_position(outer_pads, placement_order)        
+        # Separate pads and corners
+        pads = [comp for comp in sorted_components if comp.get("type") == "pad"]     
+        # Group pads by orientation
+        oriented_pads = {"R0": [], "R90": [], "R180": [], "R270": []}
+        for pad in pads:
+            orientation = pad.get("orientation", "")
+            if orientation in oriented_pads:
+                oriented_pads[orientation].append(pad)
         
-        # Edge rectangles (with cut support)
         cut_orient_index = {"R0": [], "R90": [], "R180": [], "R270": []}
-        for pads in outer_pads:
-            device = pads.get("device", pads.get("device_type", ""))
-            if device == "PFILLER10":  # Cut device
-                orient = pads["orientation"]
-                if orient == "R0":
-                    cut_orient_index["R0"].append(pads["position"][0])
-                elif orient == "R90":
-                    cut_orient_index["R90"].append(pads["position"][1])
-                elif orient == "R180":
-                    cut_orient_index["R180"].append(pads["position"][0])
-                elif orient == "R270":
-                    cut_orient_index["R270"].append(pads["position"][1])
         
-        # Generate edge rectangles with cut support
-        if cut_orient_index["R0"]:
-            skill_commands.append(f'dbCreateRect(cv list("PSUB2" "drawing") list(list(127 94.5) list({cut_orient_index["R0"][0] - 2.5} 120)))')  # bottom edge part before cut
-            skill_commands.append(f'dbCreateRect(cv list("PSUB2" "drawing") list(list({cut_orient_index["R0"][0] + 2.5} 94.5) list({chip_width - 127} 120) ))') # bottom edge part after cut
-        else:
-            skill_commands.append(f'dbCreateRect(cv list("PSUB2" "drawing") list(list(127 94.5) list({chip_width - 127} 120)))') 
-        
-        if cut_orient_index["R90"]:
-            skill_commands.append(f'dbCreateRect(cv list("PSUB2" "drawing") list(list({chip_width - 94.5} 127) list({chip_width - 120} {cut_orient_index["R90"][0] - 2.5})))')  # right edge part before cut
-            skill_commands.append(f'dbCreateRect(cv list("PSUB2" "drawing") list(list({chip_width - 94.5} {cut_orient_index["R90"][0] + 2.5}) list({chip_width - 120} {chip_height - 127})))')  # right edge part after cut
-        else:
-            skill_commands.append(f'dbCreateRect(cv list("PSUB2" "drawing") list(list({chip_width - 94.5} 127) list({chip_width - 120} {chip_height - 127})))')
-        
-        if cut_orient_index["R180"]:
-            skill_commands.append(f'dbCreateRect(cv list("PSUB2" "drawing") list(list(127 {chip_height - 94.5}) list({cut_orient_index["R180"][0] - 2.5} {chip_height - 120})))')  # top edge part before cut
-            skill_commands.append(f'dbCreateRect(cv list("PSUB2" "drawing") list(list({cut_orient_index["R180"][0] + 2.5} {chip_height - 120}) list({chip_width - 127} {chip_height - 94.5})))')  # top edge part after cut
-        else:
-            skill_commands.append(f'dbCreateRect(cv list("PSUB2" "drawing") list(list({chip_width - 127} {chip_height - 120}) list(127 {chip_height - 94.5})))')  # top edge
-        
-        if cut_orient_index["R270"]:
-            skill_commands.append(f'dbCreateRect(cv list("PSUB2" "drawing") list(list(94.5 127) list(120 {cut_orient_index["R270"][0] - 2.5})))')  # left edge part before cut
-            skill_commands.append(f'dbCreateRect(cv list("PSUB2" "drawing") list(list(94.5 {cut_orient_index["R270"][0] + 2.5}) list(120 {chip_height - 127})))')  # left edge part after cut
-        else:
-            skill_commands.append(f'dbCreateRect(cv list("PSUB2" "drawing") list(list(94.5 127) list(120 {chip_height - 127})))')  # left edge
+        gap_width = 5     # gap width of PSUB2 between different voltage domains
+        for orientation, pad_list in oriented_pads.items():
+            # operate corner
+            if orientation == "R180":  # Top edge
+                # Between top-left corner and first pad
+                first_pad = pad_list[0]
+                fpw = first_pad.get("pad_width") or pad_width
+                x = first_pad["position"][0] - fpw
+                y = chip_height
+                corner_domain = get_corner_domain(oriented_pads, "R180")
+                if corner_domain != first_pad.get("domain"):
+                    cut_orient_index[orientation].append(x - gap_width)
+            elif orientation == "R90":  # Right edge
+                # Between top-right corner and first pad
+                first_pad = pad_list[0]
+                fpw = first_pad.get("pad_width") or pad_width
+                x = chip_width
+                y = first_pad["position"][1] + fpw
+                corner_domain = get_corner_domain(oriented_pads, "R90")
+                if corner_domain != first_pad.get("domain"):
+                    cut_orient_index[orientation].append(y + gap_width)
+            elif orientation == "R0":  # Bottom edge
+                # Between bottom-right corner and first pad
+                first_pad = pad_list[0]
+                fpw = first_pad.get("pad_width") or pad_width
+                x = first_pad["position"][0] + fpw
+                y = 0
+                corner_domain = get_corner_domain(oriented_pads, "R0")
+                if corner_domain != first_pad.get("domain"):
+                    cut_orient_index[orientation].append(x + gap_width)
+            elif orientation == "R270":  # Left edge
+                # Between bottom-left corner and first pad
+                first_pad = pad_list[0]
+                fpw = first_pad.get("pad_width") or pad_width
+                x = 0
+                y = first_pad["position"][1] - fpw
+                corner_domain = get_corner_domain(oriented_pads, "R270")
+                if corner_domain != first_pad.get("domain"):
+                    cut_orient_index[orientation].append(y - gap_width)
+            
+            for i in range(len(pad_list) - 1):
+                curr_pad = pad_list[i]
+                next_pad = pad_list[i + 1]     
+                # Calculate cut position
+                if curr_pad["domain"] == next_pad["domain"]:
+                    continue
+                else:
+                    if orientation == "R0":  # Bottom edge
+                        x = curr_pad["position"][0] - gap_width
+                        cut_orient_index[orientation].append(x)
+                    elif orientation == "R90":  # Right edge
+                        y = curr_pad["position"][1] - gap_width
+                        cut_orient_index[orientation].append(y)
+                    elif orientation == "R180":  # Top edge
+                        x = curr_pad["position"][0] + gap_width
+                        cut_orient_index[orientation].append(x)
+                    elif orientation == "R270":  # Left edge
+                        y = curr_pad["position"][1] + gap_width
+                        cut_orient_index[orientation].append(y)
 
+        
+        # helper to compute edge segments with possibly multiple cuts for PSUB2
+        def _compute_edge_segments(start_coord: float, end_coord: float, cut_list: list[float]) -> list[tuple[float, float]]:
+            """Split [start_coord, end_coord] by cuts (gap_width around each cut)."""
+            if not cut_list:
+                return [(start_coord, end_coord)]
+            cuts = sorted(cut_list)
+            segments: list[tuple[float, float]] = []
+            current_start = start_coord
+            half_gap = gap_width / 2
+            for c in cuts:
+                seg_end = c - half_gap
+                if seg_end > current_start:
+                    segments.append((current_start, seg_end))
+                current_start = c + half_gap
+            if current_start < end_coord:
+                segments.append((current_start, end_coord))
+            return segments
+
+        # Bottom edge (R0): along x from offset_2 to chip_width-offset_2 at y in [offset_1, offset_3]
+        segments = _compute_edge_segments(offset_2, chip_width - offset_2, cut_orient_index["R0"])
+        for s, e in segments:
+            skill_commands.append(
+                f'dbCreateRect(cv list("PSUB2" "drawing") list(list({s} {offset_1}) list({e} {offset_3})))'
+            )
+
+        # Right edge (R90): along y from offset_2 to chip_height-offset_2 at x in [chip_width-offset_3, chip_width-offset_1]
+        segments = _compute_edge_segments(offset_2, chip_height - offset_2, cut_orient_index["R90"])
+        for s, e in segments:
+            skill_commands.append(
+                f'dbCreateRect(cv list("PSUB2" "drawing") list(list({chip_width - offset_1} {s}) list({chip_width - offset_3} {e})))'
+            )
+
+        # Top edge (R180): along x from offset_2 to chip_width-offset_2 at y in [chip_height-offset_3, chip_height-offset_1]
+        segments = _compute_edge_segments(offset_2, chip_width - offset_2, cut_orient_index["R180"])
+        for s, e in segments:
+            skill_commands.append(
+                f'dbCreateRect(cv list("PSUB2" "drawing") list(list({s} {chip_height - offset_1}) list({e} {chip_height - offset_3})))'
+            )
+
+        # Left edge (R270): along y from offset_2 to chip_height-offset_2 at x in [offset_1, offset_3]
+        segments = _compute_edge_segments(offset_2, chip_height - offset_2, cut_orient_index["R270"])
+        for s, e in segments:
+            skill_commands.append(
+                f'dbCreateRect(cv list("PSUB2" "drawing") list(list({offset_1} {s}) list({offset_3} {e})))'
+            )
         return skill_commands
 

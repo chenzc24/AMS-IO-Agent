@@ -35,10 +35,10 @@ interface:
   # How to interact with the agent
   # "cli" = command line interface (terminal)
   # "webui" = web browser interface (Gradio UI)
-  mode: "cli"
+  mode: "webui"
 
   # Save conversation logs to files
-  logging: false
+  logging: true
 
   # Show detailed code execution blocks in output
   show_code: false

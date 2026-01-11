@@ -633,7 +633,7 @@ def visualize_layout_from_components_T180(layout_components: List[Dict], output_
         comp_type = component.get("type", "pad")
         x, y = component.get("position", [0, 0])
         orientation = component.get("orientation", "R0")
-        device = component.get("device") or component.get("device_type", "")
+        device = component.get("device", "")
         name = component.get("name", "")
         
         # Get color

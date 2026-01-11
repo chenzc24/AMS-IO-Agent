@@ -193,32 +193,62 @@ class InnerPadHandler:
         process_node = ring_config.get("process_node", self.config.get("process_node", "T28"))
         digital_pads = []
         # Outer ring digital pads
-        for pad in outer_pads:
-            if DeviceClassifier.is_digital_device(pad["device"], process_node):
-                digital_pads.append({
-                    "position": pad["position"],
-                    "orientation": pad["orientation"],
-                    "name": pad["name"],
-                    "device": pad["device"],
-                    "io_direction": pad.get("io_direction", "unknown"),
-                    "is_inner": False
-                })
-        # Inner ring digital pads
-        for inner_pad in inner_pads:
-            if DeviceClassifier.is_digital_device(inner_pad["device"], process_node):
-                if isinstance(inner_pad["position"], list):
-                    position = inner_pad["position"]
-                    orientation = inner_pad["orientation"]
-                else:
-                    position, orientation = self.calculate_inner_pad_position(inner_pad["position"], outer_pads, ring_config)
-                digital_pads.append({
-                    "position": position,
-                    "orientation": orientation,
-                    "name": inner_pad["name"],
-                    "device": inner_pad["device"],
-                    "io_direction": inner_pad.get("io_direction", "unknown"),
-                    "is_inner": True
-                })
+        if process_node == "T180":
+            for pad in outer_pads:
+                if pad.get("domain") == "digital":
+                    digital_pads.append({
+                        "position": pad["position"],
+                        "orientation": pad["orientation"],
+                        "name": pad["name"],
+                        "device": pad["device"],
+                        "io_direction": pad.get("io_direction", "unknown"),
+                        "is_inner": False
+                    })
+        else:
+            for pad in outer_pads:
+                if DeviceClassifier.is_digital_device(pad["device"], process_node):
+                    digital_pads.append({
+                        "position": pad["position"],
+                        "orientation": pad["orientation"],
+                        "name": pad["name"],
+                        "device": pad["device"],
+                        "io_direction": pad.get("io_direction", "unknown"),
+                        "is_inner": False
+                    })
+            # Inner ring digital pads for non-T180
+            for inner_pad in inner_pads:
+                if DeviceClassifier.is_digital_device(inner_pad["device"], process_node):
+                    if isinstance(inner_pad["position"], list):
+                        position = inner_pad["position"]
+                        orientation = inner_pad["orientation"]
+                    else:
+                        position, orientation = self.calculate_inner_pad_position(inner_pad["position"], outer_pads, ring_config)
+                    digital_pads.append({
+                        "position": position,
+                        "orientation": orientation,
+                        "name": inner_pad["name"],
+                        "device": inner_pad["device"],
+                        "io_direction": inner_pad.get("io_direction", "unknown"),
+                        "is_inner": True
+                    })
+
+        # Inner ring digital pads for T180
+        if process_node == "T180":
+             for inner_pad in inner_pads:
+                if inner_pad.get("domain") == "digital":
+                    if isinstance(inner_pad["position"], list):
+                        position = inner_pad["position"]
+                        orientation = inner_pad["orientation"]
+                    else:
+                        position, orientation = self.calculate_inner_pad_position(inner_pad["position"], outer_pads, ring_config)
+                    digital_pads.append({
+                        "position": position,
+                        "orientation": orientation,
+                        "name": inner_pad["name"],
+                        "device": inner_pad["device"],
+                        "io_direction": inner_pad.get("io_direction", "unknown"),
+                        "is_inner": True
+                    })
         return digital_pads
     
     def get_inner_pad_gap_indices(self, inner_pads: List[dict], outer_pads: List[dict]) -> List[tuple]:

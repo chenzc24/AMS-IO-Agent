@@ -12,6 +12,46 @@ from ..T28.inner_pad_handler import InnerPadHandler
 from ..T28.auto_filler import get_corner_domain
 from ..process_node_config import get_process_node_config
 
+def get_corner_domain(oriented_pads, corner_orientation) -> str:
+    """Get corner domain based on the two pads around the corner.
+
+    If the two adjacent pads share the same domain, return that domain;
+    otherwise, default to "analog". If either pad is missing, also
+    default to "analog".
+    """
+    pad1 = None
+    pad2 = None
+    if corner_orientation == "R180":  # Top edge
+        left_pads = oriented_pads.get("R270", [])
+        top_pads = oriented_pads.get("R180", [])
+        pad1 = left_pads[-1] if left_pads else None
+        pad2 = top_pads[0] if top_pads else None
+    elif corner_orientation == "R90":  # Right edge
+        top_pads = oriented_pads.get("R180", [])
+        right_pads = oriented_pads.get("R90", [])
+        pad1 = top_pads[-1] if top_pads else None
+        pad2 = right_pads[0] if right_pads else None
+    elif corner_orientation == "R0":  # Bottom edge
+        right_pads = oriented_pads.get("R90", [])
+        bottom_pads = oriented_pads.get("R0", [])
+        pad1 = right_pads[-1] if right_pads else None
+        pad2 = bottom_pads[0] if bottom_pads else None
+    elif corner_orientation == "R270":  # Left edge
+        bottom_pads = oriented_pads.get("R0", [])
+        left_pads = oriented_pads.get("R270", [])
+        pad1 = bottom_pads[-1] if bottom_pads else None
+        pad2 = left_pads[0] if left_pads else None
+
+    if not pad1 or not pad2:
+        return "analog"
+
+    domain1 = pad1.get("domain")
+    domain2 = pad2.get("domain")
+
+    if domain1 and domain1 == domain2:
+        return domain1
+    return pad1.get("domain", "analog")
+
 
 class AutoFillerGeneratorT180:
     """Auto Filler Component Generator for T180 process node"""
