@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IO Ring Layout Editor</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; height: 100vh; margin: 0; background: #f4f4f4; }
+        .sidebar { width: 300px; background: #fff; border-right: 1px solid #ddd; display: flex; flex-direction: column; pading: 10px; }
+        .main-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .canvas-container { flex: 1; background: #e0e0e0; position: relative; overflow: auto; display: flex; justify-content: center; align-items: center; }
+        .properties-panel { height: 200px; background: #fff; border-top: 1px solid #ddd; padding: 10px; display: none; }
+        
+        /* IO Pad Styles */
+        .io-pad {
+            position: absolute;
+            background: #4caf50;
+            border: 1px solid #2e7d32;
+            color: white;
+            font-size: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            box-sizing: border-box;
+            user-select: none;
+            text-align: center;
+            word-wrap: break-word;
+            padding: 2px;
+        }
+        .io-pad:hover { box-shadow: 0 0 5px rgba(0,0,0,0.5); z-index: 10; transform: scale(1.02); }
+        .io-pad.selected { border: 2px solid #ffeb3b; box-shadow: 0 0 8px #ffeb3b; z-index: 20; }
+        .io-pad.dragging { opacity: 0.8; z-index: 100; cursor: grabbing; }
+        
+        .corner-pad { background: #f44336; border-color: #c62828; }
+        .digital-pad { background: #2196f3; border-color: #1565c0; }
+        .analog-pad { background: #4caf50; border-color: #2e7d32; }
+
+        .palette-item {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ccc;
+            background: #eee;
+            cursor: grab;
+        }
+
+        #json-output { width: 95%; height: 150px; font-family: monospace; font-size: 11px; margin: 5px; }
+        .controls { padding: 10px; border-bottom: 1px solid #eee; }
+        button { cursor: pointer; padding: 5px 10px; background: #007bff; color: white; border: none; border-radius: 3px; }
+        label { display: block; margin-top: 5px; font-size: 12px; }
+        input[type="text"] { width: 100%; box-sizing: border-box; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <h3>Component Palette</h3>
+        <div class="palette-item" draggable="true" ondragstart="startAdd(event, 'PVDD1ANA', 'analog')">Analog VDD (Pad)</div>
+        <div class="palette-item" draggable="true" ondragstart="startAdd(event, 'PVSS1ANA', 'analog')">Analog VSS (Pad)</div>
+        <div class="palette-item" draggable="true" ondragstart="startAdd(event, 'PDDW0412SCDG', 'digital')">Digital IO (Pad)</div>
+        <div class="palette-item" draggable="true" ondragstart="startAdd(event, 'PCORNER', 'null')">Corner Cell</div>
+
+        <div class="controls">
+            <button onclick="downloadJSON()">Export JSON</button>
+            <button onclick="autoArrange()">Auto-Fix Layout</button>
+        </div>
+        <h4>Properties</h4>
+        <div id="props" style="font-size: 12px;">Select an item...</div>
+    </div>
+
+    <div class="main-area">
+        <div class="canvas-container" id="canvas-container">
+            <div id="chip-canvas" style="position: relative; background: #fff; box-shadow: 0 0 20px rgba(0,0,0,0.1);">
+                <!-- Pads will be rendered here -->
+            </div>
+        </div>
+        <div class="properties-panel" id="bottom-panel">
+            <h4>Raw JSON</h4>
+            <textarea id="json-output"></textarea>
+        </div>
+    </div>
+
+    <script>
+        // Global State
+        let config = {}; // Stores ring_config
+        let instances = []; // Stores the pad list
+        let scale = 0.5; // Visual scale factor
+        
+        // Chip Dimensions (visual)
+        let chipW = 0;
+        let chipH = 0;
+        let padW = 80;
+        let padH = 120;
+        let cornerS = 130;
+
+        let selectedId = null;
+        let dragSrc = null;
+
+        // ---------- Initialization ----------
+        async function loadInitialData() {
+            // In real integration, this comes from Python backend
+            // Here we paste the user's provided JSON structure for demo
+            const rawData = {
+                "ring_config": {
+                    "process_node": "T180", "chip_width": 1350, "chip_height": 1350,
+                    "pad_spacing": 90, "pad_width": 80, "pad_height": 120, "corner_size": 130
+                },
+                "instances": [
+                     // Partial data for demo loaded from user attachment logic
+                     { "name": "MCLK", "device": "PVDD1ANA", "domain": "analog", "position": "left_0", "type": "pad" },
+                     { "name": "CDCKB", "device": "PVDD1ANA", "domain": "analog", "position": "left_1", "type": "pad" },
+                     { "name": "CKAZ", "device": "PDDW0412SCDG", "domain": "digital", "position": "left_11", "type": "pad" },
+                     { "name": "CKTM", "device": "PDDW0412SCDG", "domain": "digital", "position": "bottom_0", "type": "pad" },
+                     { "name": "DA9", "device": "PDDW0412SCDG", "domain": "digital", "position": "right_0", "type": "pad" },
+                     { "name": "GIOLD", "device": "PVSS1CDG", "domain": "analog", "position": "top_0", "type": "pad" },
+                     { "name": "CORNER_TL", "device": "PCORNER", "position": "top_left", "type": "corner" },
+                     { "name": "CORNER_TR", "device": "PCORNER", "position": "top_right", "type": "corner" },
+                     { "name": "CORNER_BL", "device": "PCORNER", "position": "bottom_left", "type": "corner" },
+                     { "name": "CORNER_BR", "device": "PCORNER", "position": "bottom_right", "type": "corner" }
+                ]
+            }; 
+            // Parsing full provided data logic would go here
+            // We use a simplified set to start, but will parse `position` carefully
+            
+            config = rawData.ring_config;
+            instances = rawData.instances;
+            
+            // Sync params
+            chipW = config.chip_width;
+            chipH = config.chip_height;
+            padW = config.pad_width;
+            padH = config.pad_height;
+            cornerS = config.corner_size;
+
+            render();
+            updateJSON();
+        }
+
+        // ---------- Rendering Logic ----------
+        function render() {
+            const canvas = document.getElementById('chip-canvas');
+            canvas.innerHTML = '';
+            canvas.style.width = (chipW * scale) + 'px';
+            canvas.style.height = (chipH * scale) + 'px';
+
+            // Draw Core Area (Reference)
+            const core = document.createElement('div');
+            core.style.position = 'absolute';
+            core.style.left = (padH * scale) + 'px';
+            core.style.top = (padH * scale) + 'px';
+            core.style.width = ((chipW - 2 * padH) * scale) + 'px';
+            core.style.height = ((chipH - 2 * padH) * scale) + 'px';
+            core.style.border = '1px dashed #ccc';
+            core.innerText = "CORE AREA";
+            core.style.textAlign = 'center';
+            core.style.paddingTop = '20%';
+            core.style.color = '#ccc';
+            canvas.appendChild(core);
+
+            instances.forEach((inst, idx) => {
+                const el = document.createElement('div');
+                el.className = 'io-pad';
+                
+                // Color coding
+                if (inst.type === 'corner') el.classList.add('corner-pad');
+                else if (inst.domain === 'digital') el.classList.add('digital-pad');
+                else el.classList.add('analog-pad');
+                
+                if (idx === selectedId) el.classList.add('selected');
+
+                // Positioning Logic based on "position": "side_index"
+                const [side, indexStr] = inst.position.split('_');
+                const index = parseInt(indexStr) || 0;
+                
+                // Coordinates calculation (Simplified for demo, assumes ordered list)
+                // Real layout engine would need to sort and stack them
+                const spacing = config.pad_spacing;
+                let top=0, left=0, w=0, h=0, rot=0;
+
+                // Corner Handling
+                if (inst.type === 'corner') {
+                   w = cornerS; h = cornerS;
+                   if (side === 'top' && indexStr === 'left') { top=0; left=0; }
+                   else if (side === 'top' && indexStr === 'right') { top=0; left=chipW-cornerS; }
+                   else if (side === 'bottom' && indexStr === 'left') { top=chipH-cornerS; left=0; }
+                   else if (side === 'bottom' && indexStr === 'right') { top=chipH-cornerS; left=chipW-cornerS; }
+                } 
+                // Pad Handling
+                else {
+                    if (side === 'top') {
+                        w = padW; h = padH;
+                        top = 0;
+                        left = cornerS + (index * spacing); // Simple stacking
+                    } else if (side === 'bottom') {
+                        w = padW; h = padH;
+                        top = chipH - padH;
+                        // Bottom usually fills from right to left or left to right depending on order
+                        // Here assuming left-to-right for simplicity of visualizer
+                        left = cornerS + (index * spacing);
+                    } else if (side === 'left') {
+                        w = padH; h = padW; // Rotated visually
+                        left = 0;
+                        top = cornerS + (index * spacing); 
+                    } else if (side === 'right') {
+                        w = padH; h = padW;
+                        left = chipW - padH;
+                        top = cornerS + (index * spacing);
+                    }
+                }
+
+                // Apply styles
+                el.style.width = (w * scale) + 'px';
+                el.style.height = (h * scale) + 'px';
+                el.style.left = (left * scale) + 'px';
+                el.style.top = (top * scale) + 'px';
+                el.innerText = inst.name || inst.device;
+                el.title = `${inst.name} (${inst.device})\nPos: ${inst.position}`;
+
+                // Event Listeners
+                el.draggable = true;
+                el.onclick = (e) => selectItem(idx, e);
+                el.ondragstart = (e) => handleDragStart(e, idx);
+                el.ondragover = (e) => e.preventDefault(); // Allow drop
+                el.ondrop = (e) => handleDrop(e, idx);
+
+                canvas.appendChild(el);
+            });
+        }
+
+        // ---------- Interaction Logic ----------
+        function selectItem(idx, e) {
+            e.stopPropagation();
+            selectedId = idx;
+            render();
+            showProps(instances[idx]);
+        }
+
+        function showProps(item) {
+            const container = document.getElementById('props');
+            container.innerHTML = `
+                <label>Name: <input type="text" value="${item.name}" onchange="updateProp('name', this.value)"></label>
+                <label>Device: <input type="text" value="${item.device}" onchange="updateProp('device', this.value)"></label>
+                <label>Position: <span>${item.position}</span></label>
+                <button onclick="deleteItem()" style="background:#d32f2f; margin-top:10px; width:100%">Delete</button>
+            `;
+        }
+
+        function updateProp(key, value) {
+            if (selectedId !== null) {
+                instances[selectedId][key] = value;
+                render();
+                updateJSON();
+            }
+        }
+
+        function deleteItem() {
+            if (selectedId !== null) {
+                instances.splice(selectedId, 1);
+                selectedId = null;
+                // Re-index positions would happen here in a real app
+                autoArrange(); 
+                render();
+                updateJSON();
+                document.getElementById('props').innerText = "Item deleted.";
+            }
+        }
+
+        // ---------- Drag & Drop Logic (Swap / Insert) ----------
+        function handleDragStart(e, idx) {
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', JSON.stringify({type: 'swap', index: idx}));
+            dragSrc = idx;
+        }
+
+        function startAdd(e, device, domain) {
+            e.dataTransfer.effectAllowed = 'copy';
+            e.dataTransfer.setData('text/plain', JSON.stringify({type: 'add', device: device, domain: domain}));
+            dragSrc = null;
+        }
+
+        function handleDrop(e, targetIdx) {
+            e.stopPropagation();
+            e.preventDefault();
+            const dataStr = e.dataTransfer.getData('text/plain');
+            if (!dataStr) return;
+            
+            const data = JSON.parse(dataStr);
+            const targetItem = instances[targetIdx];
+            
+            // Rule: Can only swap/drop onto Pads, not Corners (usually)
+            if (targetItem.type === 'corner') return; 
+
+            if (data.type === 'swap') {
+                // Swap Logic: Easy way - swap array elements
+                // Hard way: swap positions smart
+                const srcIdx = data.index;
+                const temp = instances[srcIdx];
+                
+                // Swap relative positions logic needed
+                // For now, naive array swap + position string swap
+                const posA = instances[srcIdx].position;
+                const posB = instances[targetIdx].position;
+                
+                instances[srcIdx].position = posB;
+                instances[targetIdx].position = posA;
+                
+                // Swap in array for clean ordering
+                instances[srcIdx] = instances[targetIdx];
+                instances[targetIdx] = temp;
+                
+            } else if (data.type === 'add') {
+                // Add Logic
+                // Insert new item next to target
+                const newItem = {
+                    name: "NEW_IO",
+                    device: data.device,
+                    domain: data.domain,
+                    view_name: "layout",
+                    type: "pad",
+                    position: targetItem.position // Temporary collision
+                };
+                instances.splice(targetIdx + 1, 0, newItem);
+                autoArrange(); // Must run to fix positions
+            }
+            
+            autoArrange(); // Always normalize after drop to fix _0, _1 indices
+            render();
+            updateJSON();
+        }
+
+        // ---------- Auto-Arrange / Rule Engine ----------
+        // This is the core logic that ensures "left_0, left_1" sequential validity
+        function autoArrange() {
+            // Group by side
+            const sides = { top: [], bottom: [], left: [], right: [] };
+            const corners = [];
+            
+            instances.forEach(item => {
+                if (item.type === 'corner') {
+                     corners.push(item);
+                } else {
+                    const side = item.position.split('_')[0];
+                    if (sides[side]) sides[side].push(item);
+                    else {
+                        // Fallback if position is messed up, assume top
+                        sides.top.push(item);
+                    }
+                }
+            });
+
+            // For each side, re-assign indices based on array order
+            // Note: This naive logic assumes visual order matches array order. 
+            // In a real editor, we might sort by dragged X/Y coordinates first.
+            
+            Object.keys(sides).forEach(side => {
+                sides[side].forEach((item, idx) => {
+                    item.position = `${side}_${idx}`;
+                });
+            });
+
+            // No change to corners
+            
+            updateJSON();
+        }
+
+        function updateJSON() {
+            const fullObj = {
+                ring_config: config,
+                instances: instances
+            };
+            document.getElementById('json-output').value = JSON.stringify(fullObj, null, 2);
+        }
+        
+        function downloadJSON() {
+            console.log("Downloading...", document.getElementById('json-output').value);
+            // Integration: This string is sent back to Python Gradio
+        }
+
+        loadInitialData();
+
+    </script>
+</body>
+</html>

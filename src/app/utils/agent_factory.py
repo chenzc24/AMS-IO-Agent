@@ -89,17 +89,19 @@ def create_agent(model, final_instructions, show_code_execution: bool = False, c
     return agent
 
 
-def start_web_ui(agent):
+def start_web_ui(agent, share_gradio_app: bool = False):
     """Start the Gradio web interface"""
     try:
         print("\nStarting Web UI, please wait...")
         gradio_ui = GradioUI(agent, file_upload_folder="uploads", reset_agent_memory=True)
-        gradio_ui.launch()
+        gradio_ui.launch(share=share_gradio_app)
         return True
     except ImportError:
         print("Gradio dependencies not installed, please run: pip install 'smolagents[gradio]'")
         sys.exit(1)
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         print(f"Failed to start web UI: {e}")
         return False
 

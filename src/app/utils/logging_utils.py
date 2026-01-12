@@ -41,6 +41,24 @@ class Tee(object):
         for f in self.files:
             f.flush()
 
+    def isatty(self):
+        """Proxy isatty to the first file (usually sys.stdout/stderr)"""
+        if self.files and hasattr(self.files[0], 'isatty'):
+            return self.files[0].isatty()
+        return False
+
+    def fileno(self):
+        """Proxy fileno to the first file"""
+        if self.files and hasattr(self.files[0], 'fileno'):
+            return self.files[0].fileno()
+        raise AttributeError("Tee object has no fileno")
+
+    def __getattr__(self, name):
+        """Proxy unknown attributes to the first file"""
+        if self.files:
+            return getattr(self.files[0], name)
+        raise AttributeError(f"'Tee' object has no attribute '{name}'")
+
 def setup_logging(args):
     """Setup logging redirection if --log flag is provided"""
     if hasattr(args, 'log') and args.log:
