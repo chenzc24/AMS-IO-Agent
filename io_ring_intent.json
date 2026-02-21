@@ -1,0 +1,117 @@
+{
+  "design_name": "test_v2",
+  "technology_node": "T180",
+  "chip_width": 630,
+  "chip_height": 630,
+  "ring_type": "single",
+  "pads_per_side": 4,
+  "voltage_domains": {
+    "core": 1.8,
+    "io": 3.3
+  },
+  "signal_order": "clockwise",
+  "side_order": [
+    "right",
+    "bottom",
+    "left",
+    "top"
+  ],
+  "signals": [
+    {
+      "name": "GIOLA",
+      "side": "right",
+      "position": 0,
+      "type": "signal"
+    },
+    {
+      "name": "VIOLA",
+      "side": "right",
+      "position": 1,
+      "type": "signal"
+    },
+    {
+      "name": "MCLK",
+      "side": "right",
+      "position": 2,
+      "type": "signal"
+    },
+    {
+      "name": "VDCKB",
+      "side": "right",
+      "position": 3,
+      "type": "signal"
+    },
+    {
+      "name": "RSTM",
+      "side": "bottom",
+      "position": 0,
+      "type": "signal"
+    },
+    {
+      "name": "DOTM",
+      "side": "bottom",
+      "position": 1,
+      "type": "signal"
+    },
+    {
+      "name": "DA4",
+      "side": "bottom",
+      "position": 2,
+      "type": "signal"
+    },
+    {
+      "name": "DA3",
+      "side": "bottom",
+      "position": 3,
+      "type": "signal"
+    },
+    {
+      "name": "DA2",
+      "side": "left",
+      "position": 0,
+      "type": "signal"
+    },
+    {
+      "name": "DA1",
+      "side": "left",
+      "position": 1,
+      "type": "signal"
+    },
+    {
+      "name": "VIOHD",
+      "side": "left",
+      "position": 2,
+      "type": "signal"
+    },
+    {
+      "name": "VIOLD",
+      "side": "left",
+      "position": 3,
+      "type": "signal"
+    },
+    {
+      "name": "GIOLD",
+      "side": "top",
+      "position": 0,
+      "type": "signal"
+    },
+    {
+      "name": "GIOHD",
+      "side": "top",
+      "position": 1,
+      "type": "signal"
+    },
+    {
+      "name": "VIOHA",
+      "side": "top",
+      "position": 2,
+      "type": "signal"
+    },
+    {
+      "name": "GIOHA",
+      "side": "top",
+      "position": 3,
+      "type": "signal"
+    }
+  ]
+}

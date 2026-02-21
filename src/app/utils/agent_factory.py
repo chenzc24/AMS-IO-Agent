@@ -5,7 +5,8 @@ Agent Factory - Configuration-driven tool loading
 import sys
 from pathlib import Path
 from smolagents import OpenAIServerModel
-from smolagents.gradio_ui import GradioUI
+# form smolagents.gradio_ui import GradioUI  # <--- Replaced
+from src.app.utils.custom_gradio_interface import IOAgentGradioUI as GradioUI
 
 from src.app.utils.tool_loader import get_tools_for_agent
 from src.tools.tool_manager import set_agent_instance
@@ -50,9 +51,11 @@ def create_agent(model, final_instructions, show_code_execution: bool = False, c
     # Load tools from configuration instead of hardcoding
     tools = get_tools_for_agent(config_path)
     
-    # Add default tools from smolagents (like user_input)
-    if UserInputTool is not None:
-        tools.append(UserInputTool())
+    # [MODIFIED] Disable UserInputTool for Web/API environments to prevent server-side blocking.
+    # The agent should instead return a Final Answer asking for information.
+    # 
+    # if UserInputTool is not None:
+    #     tools.append(UserInputTool())
     
     agent = TokenLimitedCodeAgent(
         tools=tools,

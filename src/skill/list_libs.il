@@ -1,9 +1,7 @@
 
-procedure( list_libs()
-    libs = ddGetObj()
-    while (libs
-        printf("%L\n" libs)
-        libs = ddGetNextObj(libs)
-    )
-    "Done"
+;; List all libraries in the current session
+(let ((libs (getOpenLibs)))
+  (println "Open libraries: " libs)
+  (println "All libraries: " (getLibList))
+  (buildString libs)
 )

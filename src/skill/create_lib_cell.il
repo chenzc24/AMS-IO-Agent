@@ -1,0 +1,18 @@
+
+;; Create library and cell if they don't exist
+(let ((libName "llm_test")
+      (cellName "test_v2")
+      (viewName "layout")
+      (lib nil)
+      (cv nil))
+  (unless (setq lib (ddGetObj libName))
+    (println "Creating library " libName)
+    (setq lib (ddCreateLib libName))
+  )
+  (unless (setq cv (dbOpenCellViewByType lib cellName viewName "maskLayout" "w"))
+    (println "Creating cellview " libName "/" cellName "/" viewName)
+    (setq cv (dbCreateCellViewByType lib cellName viewName "maskLayout" "w"))
+  )
+  (println "Cellview opened: " (get_cellview_info))
+  (string-append "Created/opened " libName "/" cellName "/" viewName)
+)

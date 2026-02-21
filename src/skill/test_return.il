@@ -1,2 +1,3 @@
-list( 1 2 3 4 5 )
-1+1
+
+;; Return a string
+"SKILL is working"
