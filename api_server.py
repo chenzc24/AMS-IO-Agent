@@ -5,12 +5,19 @@ import logging
 import asyncio
 from pathlib import Path
 from typing import List, Optional, Any
+import threading
+import queue
+import builtins
+import time
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, UploadFile, File, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from dotenv import load_dotenv
+import shutil
+import uuid
 
 # Configure logging to stdout
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -24,6 +31,67 @@ sys.path.append(str(project_root))
 os.chdir(project_root)
 
 load_dotenv()
+
+# ==========================================
+# Input Manager & Event Definitions
+# ==========================================
+
+class InputRequest:
+    """Event triggered when Agent requests user input"""
+    def __init__(self, prompt: str = ""):
+        self.prompt = prompt
+
+class ThreadSafeInputManager:
+    """Manages input requests between Agent (Thread) and WebUI (Async)"""
+    def __init__(self):
+        self.input_event = threading.Event()
+        self.input_value = None
+        self.pending_prompt = None
+        self.is_waiting = False
+        # Queue to communicate back to the SSE generator
+        # Note: This limits us to one active agent run globally for now
+        self.response_queue = None 
+
+    def set_response_queue(self, q: queue.Queue):
+        self.response_queue = q
+
+    def request_input(self, prompt=""):
+        """Called by the agent (via patched input())"""
+        logger.info(f"Agent requested input with prompt: {prompt}")
+        self.is_waiting = True
+        self.pending_prompt = prompt
+        
+        # Notify Frontend via SSE
+        if self.response_queue:
+            self.response_queue.put(InputRequest(prompt))
+        
+        # Wait for API to provide input
+        self.input_event.wait()
+        
+        # Reset
+        self.input_event.clear()
+        self.is_waiting = False
+        value = self.input_value
+        self.input_value = None
+        logger.info(f"Agent received input: {value}")
+        return value
+
+    def submit_input(self, value: str):
+        """Called by FastAPI endpoint"""
+        if not self.is_waiting:
+            return False
+        self.input_value = value
+        self.input_event.set()
+        return True
+
+# Global Singletons
+input_manager = ThreadSafeInputManager()
+# Patched input function
+original_input = builtins.input
+
+def patched_input(prompt=""):
+    return input_manager.request_input(prompt)
+
 
 # ==========================================
 # Agent Imports
@@ -51,6 +119,43 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ==========================================
+# New: File Upload & Static Routes
+# ==========================================
+# Directory for uploaded files
+UPLOAD_DIR = os.path.join(project_root, "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+
+# Directory for generated outputs
+OUTPUT_DIR = os.path.join(project_root, "output")
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+app.mount("/output", StaticFiles(directory=OUTPUT_DIR), name="output")
+
+@app.post("/api/agent/upload")
+async def upload_file(file: UploadFile = File(...)):
+    """Upload a file to the server and return its relative path."""
+    try:
+        # Generate a safe filename
+        ext = os.path.splitext(file.filename)[1]
+        unique_filename = f"{uuid.uuid4()}{ext}"
+        file_path = os.path.join(UPLOAD_DIR, unique_filename)
+        
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+            
+        # Return path relative to project root or URL path
+        # Assuming frontend serves from same domain or proxies
+        return {
+            "filename": file.filename,
+            "filepath": f"uploads/{unique_filename}",
+            "url": f"/uploads/{unique_filename}"
+        }
+    except Exception as e:
+        logger.error(f"Failed to upload file: {e}")
+        return {"error": str(e)}
+
 
 # Global Agent Instance
 agent_instance = None
@@ -93,6 +198,17 @@ class AnthropicCompletionRequest(BaseModel):
     temperature: float = 0.7
     top_k: int = -1
     top_p: int = -1
+
+class InputSubmission(BaseModel):
+    """Payload for submitting input to the paused agent"""
+    value: str
+
+# [ADDED] - PHASE 1: New Agent Chat Request Schema
+class AgentChatRequest(BaseModel):
+    prompt: str
+    stream: bool = True
+    reset_memory: bool = False
+    files: List[str] = []  # List of file paths or contents if needed
 
 # ==========================================
 # Helpers
@@ -175,9 +291,36 @@ Based on the history above and the current request, please proceed with the nece
 def format_sse_event(data_dict: dict) -> str:
     return f"event: completion\ndata: {json.dumps(data_dict)}\n\n"
 
+# [ADDED] - PHASE 1: New SSE Formatter for structured events
+def format_agent_event(event_type: str, data: Any) -> str:
+    # Ensure data is JSON serializable
+    if hasattr(data, "dict"):
+        payload = data.dict()
+    elif hasattr(data, "to_string"): # For AgentImage/AgentText
+        payload = str(data.to_string())
+    else:
+        payload = str(data)
+        
+    packet = {
+        "type": event_type,
+        "content": payload,
+        "timestamp": 0 # TODO: Add real timestamp
+    }
+    return f"event: agent_event\ndata: {json.dumps(packet)}\n\n"
+
 # ==========================================
 # Endpoints
 # ==========================================
+@app.post("/api/agent/submit_input")
+async def submit_input(submission: InputSubmission):
+    """Resume the paused agent with the provided input value"""
+    if input_manager.submit_input(submission.value):
+        logger.info(f"Input submitted: {submission.value}")
+        return {"status": "success", "message": "Input received, agent resuming."}
+    else:
+        logger.warning("Received input submission but agent was not waiting.")
+        raise HTTPException(status_code=400, detail="Agent is not waiting for input.")
+
 @app.post("/anthropic/v1/complete")
 async def complete(request: AnthropicCompletionRequest):
     logger.info(f"DEBUG: Raw received prompt: {repr(request.prompt)}")
@@ -200,10 +343,71 @@ async def complete(request: AnthropicCompletionRequest):
          return {"error": "Agent not initialized"}
 
     async def event_generator():
+        response_queue = queue.Queue()
+        input_manager.set_response_queue(response_queue)
+        
+        # Define agent runner to execute in a separate thread
+        def run_agent_worker():
+            # Patch input
+            builtins.input = patched_input
+            try:
+                # Run the agent (synchronous generator) matches smolagents API
+                for step in agent_instance.run(query, stream=True):
+                    response_queue.put(step)
+                response_queue.put("DONE")
+            except Exception as e:
+                logger.error(f"Error in agent_runner: {e}")
+                response_queue.put(e)
+            finally:
+                # Restore input
+                builtins.input = original_input
+                input_manager.set_response_queue(None)
+
+        # Start agent thread
+        agent_thread = threading.Thread(target=run_agent_worker)
+        agent_thread.start()
+
+        # Main SSE loop: consume from queue
         try:
             step_idx = 1
-            # Run the agent (synchronous generator) matches smolagents API
-            for step in agent_instance.run(query, stream=True):
+            while True:
+                # Poll queue safely
+                try:
+                    # Non-blocking check or short timeout
+                    item = await asyncio.to_thread(response_queue.get, timeout=0.1)
+                except queue.Empty:
+                    if not agent_thread.is_alive() and response_queue.empty():
+                        break
+                    # Keep yielding something (or nothing) to keep connection alive if needed
+                    # But text/event-stream doesn't require constant data
+                    await asyncio.sleep(0.05)
+                    continue
+                
+                if item == "DONE":
+                    break
+                    
+                if isinstance(item, Exception):
+                    yield format_sse_event({
+                        "completion": f"\n\n❌ An error occurred: {str(item)}",
+                        "stop_reason": "error",
+                        "model": "ams-io-agent"
+                    })
+                    break
+
+                # Handle Input Request Event
+                if isinstance(item, InputRequest):
+                    yield f"event: input_request\ndata: {json.dumps({'prompt': item.prompt})}\n\n"
+                    
+                    # Yield a display message to the user as well
+                    yield format_sse_event({
+                        "completion": f"\n\n❓ **Input Requested**: {item.prompt}\n",
+                        "stop_reason": None,
+                        "model": "ams-io-agent"
+                    })
+                    continue
+                
+                # Check if it's a step object
+                step = item
                 output_chunk = ""
                 
                 if isinstance(step, ActionStep):
@@ -295,3 +499,233 @@ async def complete(request: AnthropicCompletionRequest):
 @app.get("/health")
 async def health():
     return {"status": "ok", "agent_initialized": agent_instance is not None}
+
+# ==========================================
+# PHASE 1: New Structured Agent Endpoint
+# ==========================================
+@app.post("/api/agent/chat")
+async def agent_chat(request: AgentChatRequest):
+    logger.info(f"Received Agent Request: {request.prompt[:50]}...")
+    
+    if not agent_instance:
+         # Initialize on demand if not ready (fallback)
+         try:
+             await startup_event()
+         except:
+             return {"error": "Agent not initialized"}
+         
+    # Create turn-specific working directory
+    from datetime import datetime
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    turn_dir_name = f"turn_{timestamp}"
+    turn_dir = os.path.join(OUTPUT_DIR, turn_dir_name)
+    os.makedirs(turn_dir, exist_ok=True)
+    relative_turn_dir = f"output/{turn_dir_name}"
+    
+    # Inject directory instruction into prompt
+    # We append this instruction so the agent knows where to save files for this turn
+    enhanced_prompt = f"{request.prompt}\n\n[SYSTEM INSTRUCTION: Save ALL generated files (images, code, reports) to the directory '{relative_turn_dir}'. Do not use 'output/' root.]"
+
+    async def structured_event_generator():
+        response_queue = queue.Queue()
+        input_manager.set_response_queue(response_queue)
+        
+        # Define agent runner to execute in a separate thread
+        def run_agent_worker():
+            # Patch input
+            builtins.input = patched_input
+            try:
+                # 1. Yield an "ack" with directory info
+                response_queue.put(format_agent_event("status", f"Starting Agent... (Output Dir: {turn_dir_name})"))
+                
+                # 2. Run Agent
+                for step in agent_instance.run(enhanced_prompt, stream=True, reset=request.reset_memory):
+                    response_queue.put(step)
+                
+                response_queue.put("DONE")
+            except Exception as e:
+                logger.error(f"Error in agent_runner: {e}")
+                response_queue.put(e)
+            finally:
+                # Restore input
+                builtins.input = original_input
+                input_manager.set_response_queue(None)
+
+        # Start agent thread
+        agent_thread = threading.Thread(target=run_agent_worker)
+        agent_thread.start()
+
+        try:
+            while True:
+                # Poll queue safely
+                try:
+                    # Non-blocking check or short timeout
+                    item = await asyncio.to_thread(response_queue.get, timeout=0.1)
+                except queue.Empty:
+                    if not agent_thread.is_alive() and response_queue.empty():
+                        break
+                    # Keep yielding something (or nothing) to keep connection alive if needed
+                    await asyncio.sleep(0.05)
+                    continue
+                
+                if item == "DONE":
+                    break
+                    
+                if isinstance(item, Exception):
+                     yield format_agent_event("agent_error", str(item))
+                     break
+                     
+                # Handle pre-formatted string (ack)
+                if isinstance(item, str) and item.startswith("event:"):
+                    yield item
+                    continue
+
+                # Handle Input Request Event
+                if isinstance(item, InputRequest):
+                    yield format_agent_event("input_request", {"prompt": item.prompt})
+                    continue
+
+                # Process steps
+                step = item
+                
+                # --- CASE A: Reasoning / Tool Plan (ActionStep) ---
+                if isinstance(step, ActionStep):
+                    # A.1: The thought/plan
+                    if hasattr(step, 'model_output') and step.model_output:
+                        yield format_agent_event("agent_thought", step.model_output)
+                    
+                    # A.2: The tool call (if parsed/available separately)
+                    if hasattr(step, 'tool_calls') and step.tool_calls:
+                        for tc in step.tool_calls:
+                            # Convert ToolCall object to dict safely
+                            tc_dict = {
+                                "name": getattr(tc, 'name', 'unknown'),
+                                "arguments": getattr(tc, 'arguments', {})
+                            }
+                            yield format_agent_event("tool_call", tc_dict)
+
+                    # A.3: The observation (Result)
+                    if step.observations:
+                        yield format_agent_event("tool_result", step.observations)
+                        
+                    if step.error:
+                        yield format_agent_event("agent_error", str(step.error))
+
+                # --- CASE B: Final Answer Stream (ChatMessageStreamDelta) ---
+                elif isinstance(step, ChatMessageStreamDelta):
+                    if step.content:
+                        # Raw text chunks for the final answer
+                        yield format_agent_event("final_answer_delta", step.content)
+
+                # --- CASE C: Final Answer Complete (FinalAnswerStep) ---
+                elif isinstance(step, FinalAnswerStep):
+                    # Could send the whole final object if needed
+                    yield format_agent_event("final_answer_done", str(step.output))
+
+            # 3. Finish
+            try:
+                # Save Memory
+                log_path = project_root / "logs" / f"web_session_{os.getpid()}.json"
+                save_agent_memory(agent_instance, log_path, None)
+                
+                # [ADDED] Scan for generated files in the turn directory
+                generated_files = []
+                if os.path.exists(turn_dir):
+                    for root, dirs, files in os.walk(turn_dir):
+                        for file in files:
+                            # Create relative path for frontend access
+                            file_abs_path = os.path.join(root, file)
+                            file_rel_path = os.path.relpath(file_abs_path, project_root) # e.g. output/turn_XXX/file.png
+                            
+                            # Add to list
+                            generated_files.append({
+                                "name": file,
+                                "path": file_rel_path,
+                                "url": f"/{file_rel_path}" # e.g. /output/turn_XXX/file.png
+                            })
+                
+                # Send file summary event
+                if generated_files:
+                    yield format_agent_event("files_generated", generated_files)
+                    
+            except Exception as e:
+                logger.error(f"Post-processing failed: {e}")
+                
+            yield format_agent_event("status", "Finished")
+            
+        except Exception as e:
+            logger.error(f"Agent Execution Error: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            yield format_agent_event("agent_error", str(e))
+
+    return StreamingResponse(structured_event_generator(), media_type="text/event-stream")
+
+
+# ==========================================
+# File System API (New)
+# ==========================================
+
+class FileContentRequest(BaseModel):
+    path: str
+    content: Optional[str] = None
+
+@app.get("/api/files")
+async def list_files():
+    """List project files recursively, respecting basic ignore rules."""
+    ignore_dirs = {'.git', 'node_modules', '__pycache__', '.venv', 'venv', 'logs', 'site-packages'}
+    ignore_files = {'.DS_Store'}
+    
+    file_list = []
+    
+    for root, dirs, files in os.walk(project_root):
+        # Filter directories in-place
+        dirs[:] = [d for d in dirs if d not in ignore_dirs]
+        
+        for file in files:
+            if file in ignore_files:
+                continue
+                
+            full_path = Path(root) / file
+            rel_path = full_path.relative_to(project_root)
+            
+            file_list.append({
+                "path": str(rel_path),
+                "name": file,
+                "type": "file",
+                "size": full_path.stat().st_size
+            })
+            
+    return {"files": file_list}
+
+@app.get("/api/files/content")
+async def get_file_content(path: str):
+    """Get the content of a file."""
+    try:
+        # Sanitize path to prevent traversal
+        safe_path = (project_root / path).resolve()
+        if not str(safe_path).startswith(str(project_root)):
+             return {"error": "Access denied"}
+             
+        if not safe_path.exists():
+            return {"error": "File not found"}
+            
+        return {"content": safe_path.read_text(encoding='utf-8', errors='replace')}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.post("/api/files/content")
+async def save_file_content(request: FileContentRequest):
+    """Save content to a file."""
+    try:
+        safe_path = (project_root / request.path).resolve()
+        # Allow creating new files within project root
+        if not str(safe_path).startswith(str(project_root)):
+             return {"error": "Access denied"}
+             
+        safe_path.parent.mkdir(parents=True, exist_ok=True)
+        safe_path.write_text(request.content, encoding='utf-8')
+        return {"status": "success", "path": str(request.path)}
+    except Exception as e:
+        return {"error": str(e)}
+

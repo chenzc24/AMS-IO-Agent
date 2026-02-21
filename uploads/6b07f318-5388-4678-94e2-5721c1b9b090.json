@@ -1,0 +1,454 @@
+{
+  "ring_config": {
+    "process_node": "T180",
+    "chip_width": 630,
+    "chip_height": 630,
+    "pad_spacing": 90,
+    "pad_width": 80,
+    "pad_height": 120,
+    "corner_size": 130,
+    "top_count": 4,
+    "bottom_count": 4,
+    "left_count": 4,
+    "right_count": 4,
+    "placement_order": "clockwise"
+  },
+  "instances": [
+    {
+      "name": "GIOLA",
+      "device": "PVSS1CDG",
+      "view_name": "layout",
+      "domain": "analog",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "right_0",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLA"
+        },
+        "VSS": {
+          "label": "GIOLA"
+        },
+        "VDDPST": {
+          "label": "VIOHA"
+        },
+        "VSSPST": {
+          "label": "GIOHA"
+        }
+      }
+    },
+    {
+      "name": "VIOLA",
+      "device": "PVDD1CDG",
+      "view_name": "layout",
+      "domain": "analog",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "right_1",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLA"
+        },
+        "VSS": {
+          "label": "GIOLA"
+        },
+        "VDDPST": {
+          "label": "VIOHA"
+        },
+        "VSSPST": {
+          "label": "GIOHA"
+        }
+      }
+    },
+    {
+      "name": "MCLK",
+      "device": "PVSS1ANA",
+      "view_name": "layout",
+      "domain": "analog",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "right_2",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLA"
+        },
+        "VSS": {
+          "label": "GIOLA"
+        },
+        "VDDPST": {
+          "label": "VIOHA"
+        },
+        "VSSPST": {
+          "label": "GIOHA"
+        },
+        "AVSS": {
+          "label": "MCLK"
+        }
+      }
+    },
+    {
+      "name": "VDCKB",
+      "device": "PVDD1ANA",
+      "view_name": "layout",
+      "domain": "analog",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "right_3",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLA"
+        },
+        "VSS": {
+          "label": "GIOLA"
+        },
+        "VDDPST": {
+          "label": "VIOHA"
+        },
+        "VSSPST": {
+          "label": "GIOHA"
+        },
+        "AVDD": {
+          "label": "VDCKB"
+        }
+      }
+    },
+    {
+      "name": "RSTM",
+      "device": "PDDW0412SCDG",
+      "view_name": "layout",
+      "domain": "digital",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "bottom_0",
+      "type": "pad",
+      "io_type": "input",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLD"
+        },
+        "VSS": {
+          "label": "GIOLD"
+        },
+        "VDDPST": {
+          "label": "VIOHD"
+        },
+        "VSSPST": {
+          "label": "GIOHD"
+        }
+      }
+    },
+    {
+      "name": "DOTM",
+      "device": "PDDW0412SCDG",
+      "view_name": "layout",
+      "domain": "digital",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "bottom_1",
+      "type": "pad",
+      "io_type": "input",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLD"
+        },
+        "VSS": {
+          "label": "GIOLD"
+        },
+        "VDDPST": {
+          "label": "VIOHD"
+        },
+        "VSSPST": {
+          "label": "GIOHD"
+        }
+      }
+    },
+    {
+      "name": "DA4",
+      "device": "PDDW0412SCDG",
+      "view_name": "layout",
+      "domain": "digital",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "bottom_2",
+      "type": "pad",
+      "io_type": "input",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLD"
+        },
+        "VSS": {
+          "label": "GIOLD"
+        },
+        "VDDPST": {
+          "label": "VIOHD"
+        },
+        "VSSPST": {
+          "label": "GIOHD"
+        }
+      }
+    },
+    {
+      "name": "DA3",
+      "device": "PDDW0412SCDG",
+      "view_name": "layout",
+      "domain": "digital",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "bottom_3",
+      "type": "pad",
+      "io_type": "input",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLD"
+        },
+        "VSS": {
+          "label": "GIOLD"
+        },
+        "VDDPST": {
+          "label": "VIOHD"
+        },
+        "VSSPST": {
+          "label": "GIOHD"
+        }
+      }
+    },
+    {
+      "name": "DA2",
+      "device": "PDDW0412SCDG",
+      "view_name": "layout",
+      "domain": "digital",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "left_0",
+      "type": "pad",
+      "io_type": "input",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLD"
+        },
+        "VSS": {
+          "label": "GIOLD"
+        },
+        "VDDPST": {
+          "label": "VIOHD"
+        },
+        "VSSPST": {
+          "label": "GIOHD"
+        }
+      }
+    },
+    {
+      "name": "DA1",
+      "device": "PDDW0412SCDG",
+      "view_name": "layout",
+      "domain": "digital",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "left_1",
+      "type": "pad",
+      "io_type": "input",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLD"
+        },
+        "VSS": {
+          "label": "GIOLD"
+        },
+        "VDDPST": {
+          "label": "VIOHD"
+        },
+        "VSSPST": {
+          "label": "GIOHD"
+        }
+      }
+    },
+    {
+      "name": "VIOHD",
+      "device": "PVDD2CDG",
+      "view_name": "layout",
+      "domain": "digital",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "left_2",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLD"
+        },
+        "VSS": {
+          "label": "GIOLD"
+        },
+        "VDDPST": {
+          "label": "VIOHD"
+        },
+        "VSSPST": {
+          "label": "GIOHD"
+        }
+      }
+    },
+    {
+      "name": "VIOLD",
+      "device": "PVDD1CDG",
+      "view_name": "layout",
+      "domain": "digital",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "left_3",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLD"
+        },
+        "VSS": {
+          "label": "GIOLD"
+        },
+        "VDDPST": {
+          "label": "VIOHD"
+        },
+        "VSSPST": {
+          "label": "GIOHD"
+        }
+      }
+    },
+    {
+      "name": "GIOLD",
+      "device": "PVSS1CDG",
+      "view_name": "layout",
+      "domain": "digital",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "top_0",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLD"
+        },
+        "VSS": {
+          "label": "GIOLD"
+        },
+        "VDDPST": {
+          "label": "VIOHD"
+        },
+        "VSSPST": {
+          "label": "GIOHD"
+        }
+      }
+    },
+    {
+      "name": "GIOHD",
+      "device": "PVSS2CDG",
+      "view_name": "layout",
+      "domain": "digital",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "top_1",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLD"
+        },
+        "VSS": {
+          "label": "GIOLD"
+        },
+        "VDDPST": {
+          "label": "VIOHD"
+        },
+        "VSSPST": {
+          "label": "GIOHD"
+        }
+      }
+    },
+    {
+      "name": "VIOHA",
+      "device": "PVDD2CDG",
+      "view_name": "layout",
+      "domain": "analog",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "top_2",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLA"
+        },
+        "VSS": {
+          "label": "GIOLA"
+        },
+        "VDDPST": {
+          "label": "VIOHA"
+        },
+        "VSSPST": {
+          "label": "GIOHA"
+        }
+      }
+    },
+    {
+      "name": "GIOHA",
+      "device": "PVSS2CDG",
+      "view_name": "layout",
+      "domain": "analog",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "top_3",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLA"
+        },
+        "VSS": {
+          "label": "GIOLA"
+        },
+        "VDDPST": {
+          "label": "VIOHA"
+        },
+        "VSSPST": {
+          "label": "GIOHA"
+        }
+      }
+    },
+    {
+      "name": "CORNER_TOPLEFT",
+      "device": "PCORNER",
+      "view_name": "layout",
+      "domain": null,
+      "pad_width": 130,
+      "pad_height": 130,
+      "position": "top_left",
+      "type": "corner"
+    },
+    {
+      "name": "CORNER_TOPRIGHT",
+      "device": "PCORNER",
+      "view_name": "layout",
+      "domain": null,
+      "pad_width": 130,
+      "pad_height": 130,
+      "position": "top_right",
+      "type": "corner"
+    },
+    {
+      "name": "CORNER_BOTTOMRIGHT",
+      "device": "PCORNER",
+      "view_name": "layout",
+      "domain": null,
+      "pad_width": 130,
+      "pad_height": 130,
+      "position": "bottom_right",
+      "type": "corner"
+    },
+    {
+      "name": "CORNER_BOTTOMLEFT",
+      "device": "PCORNER",
+      "view_name": "layout",
+      "domain": null,
+      "pad_width": 130,
+      "pad_height": 130,
+      "position": "bottom_left",
+      "type": "corner"
+    }
+  ]
+}

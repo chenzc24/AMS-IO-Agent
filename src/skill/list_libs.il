@@ -1,7 +1,6 @@
 
-;; List all libraries in the current session
-(let ((libs (getOpenLibs)))
-  (println "Open libraries: " libs)
-  (println "All libraries: " (getLibList))
-  (buildString libs)
+libs = ddGetObj()
+while( libs
+    println(libs~>name)
+    libs = libs~>next
 )

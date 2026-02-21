@@ -1,7 +1,5 @@
 
-;; List all libraries
-libs = ddGetObj(nil)
-printf("Libraries:\n")
+libs = ddGetLibList()
 foreach(lib libs
     printf("%s\n" lib~>name)
 )
