@@ -294,11 +294,16 @@ def format_sse_event(data_dict: dict) -> str:
 # [ADDED] - PHASE 1: New SSE Formatter for structured events
 def format_agent_event(event_type: str, data: Any) -> str:
     # Ensure data is JSON serializable
+    payload = None
     if hasattr(data, "dict"):
         payload = data.dict()
     elif hasattr(data, "to_string"): # For AgentImage/AgentText
         payload = str(data.to_string())
+    elif isinstance(data, (list, dict)):
+        # Keep lists and dicts AS IS (so json.dumps handles them)
+        payload = data
     else:
+        # Fallback to string
         payload = str(data)
         
     packet = {
@@ -530,6 +535,27 @@ async def agent_chat(request: AgentChatRequest):
         response_queue = queue.Queue()
         input_manager.set_response_queue(response_queue)
         
+        # Track sent files to avoid duplicates
+        sent_files = set()
+
+        def scan_and_yield_files():
+            files_to_send = []
+            if os.path.exists(turn_dir):
+                for root, dirs, files in os.walk(turn_dir):
+                    for file in files:
+                        file_abs_path = os.path.join(root, file)
+                        # Check modification time or just existence? 
+                        # Using abs path as ID for simplicity
+                        if file_abs_path not in sent_files:
+                            sent_files.add(file_abs_path)
+                            file_rel_path = os.path.relpath(file_abs_path, project_root)
+                            files_to_send.append({
+                                "name": file,
+                                "path": file_rel_path,
+                                "url": f"/{file_rel_path}" 
+                            })
+            return files_to_send
+
         # Define agent runner to execute in a separate thread
         def run_agent_worker():
             # Patch input
@@ -538,9 +564,15 @@ async def agent_chat(request: AgentChatRequest):
                 # 1. Yield an "ack" with directory info
                 response_queue.put(format_agent_event("status", f"Starting Agent... (Output Dir: {turn_dir_name})"))
                 
+                # Check for existing files first (e.g. from previous turns or externally created)
+                # But actually we are in a new turn dir, so it should be empty.
+                pass 
+                
                 # 2. Run Agent
                 for step in agent_instance.run(enhanced_prompt, stream=True, reset=request.reset_memory):
                     response_queue.put(step)
+                    # Force yield a scan check after each step
+                    response_queue.put("CHECK_FILES")
                 
                 response_queue.put("DONE")
             except Exception as e:
@@ -564,12 +596,25 @@ async def agent_chat(request: AgentChatRequest):
                 except queue.Empty:
                     if not agent_thread.is_alive() and response_queue.empty():
                         break
+                    
+                    # [Polling] Scan for new files periodically during idle/slow moments
+                    new_files = scan_and_yield_files()
+                    if new_files:
+                        yield format_agent_event("files_generated", new_files)
+
                     # Keep yielding something (or nothing) to keep connection alive if needed
                     await asyncio.sleep(0.05)
                     continue
                 
                 if item == "DONE":
                     break
+
+                if item == "CHECK_FILES":
+                    # Explicit signal to scan
+                    new_files = scan_and_yield_files()
+                    if new_files:
+                        yield format_agent_event("files_generated", new_files)
+                    continue
                     
                 if isinstance(item, Exception):
                      yield format_agent_event("agent_error", str(item))
@@ -582,6 +627,11 @@ async def agent_chat(request: AgentChatRequest):
 
                 # Handle Input Request Event
                 if isinstance(item, InputRequest):
+                    # [Pre-Input] Scan for any files generated just before asking
+                    new_files = scan_and_yield_files()
+                    if new_files:
+                        yield format_agent_event("files_generated", new_files)
+                        
                     yield format_agent_event("input_request", {"prompt": item.prompt})
                     continue
 
@@ -590,9 +640,19 @@ async def agent_chat(request: AgentChatRequest):
                 
                 # --- CASE A: Reasoning / Tool Plan (ActionStep) ---
                 if isinstance(step, ActionStep):
+                    # [Step-Bound] Scan for new files after each step execution finishes
+                    # (Usually files are created during tool execution within the step)
+                    
                     # A.1: The thought/plan
                     if hasattr(step, 'model_output') and step.model_output:
-                        yield format_agent_event("agent_thought", step.model_output)
+                        clean_thought = step.model_output.strip()
+                        # [Fix] Ensure code blocks are closed if they look open
+                        # If odd number of triple backticks, append one
+                        triple_ticks = clean_thought.count("```")
+                        if triple_ticks % 2 != 0:
+                            clean_thought += "\n```"
+                            
+                        yield format_agent_event("agent_thought", clean_thought)
                     
                     # A.2: The tool call (if parsed/available separately)
                     if hasattr(step, 'tool_calls') and step.tool_calls:
@@ -622,31 +682,15 @@ async def agent_chat(request: AgentChatRequest):
                     # Could send the whole final object if needed
                     yield format_agent_event("final_answer_done", str(step.output))
 
-            # 3. Finish
+            # 3. Finish - One last scan
             try:
                 # Save Memory
                 log_path = project_root / "logs" / f"web_session_{os.getpid()}.json"
                 save_agent_memory(agent_instance, log_path, None)
                 
-                # [ADDED] Scan for generated files in the turn directory
-                generated_files = []
-                if os.path.exists(turn_dir):
-                    for root, dirs, files in os.walk(turn_dir):
-                        for file in files:
-                            # Create relative path for frontend access
-                            file_abs_path = os.path.join(root, file)
-                            file_rel_path = os.path.relpath(file_abs_path, project_root) # e.g. output/turn_XXX/file.png
-                            
-                            # Add to list
-                            generated_files.append({
-                                "name": file,
-                                "path": file_rel_path,
-                                "url": f"/{file_rel_path}" # e.g. /output/turn_XXX/file.png
-                            })
-                
-                # Send file summary event
-                if generated_files:
-                    yield format_agent_event("files_generated", generated_files)
+                new_files = scan_and_yield_files()
+                if new_files:
+                    yield format_agent_event("files_generated", new_files)
                     
             except Exception as e:
                 logger.error(f"Post-processing failed: {e}")
