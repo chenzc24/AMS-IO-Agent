@@ -1,0 +1,1856 @@
+{
+  "ring_config": {
+    "process_node": "T180",
+    "chip_width": 1350,
+    "chip_height": 1350,
+    "pad_spacing": 90,
+    "pad_width": 80,
+    "pad_height": 120,
+    "corner_size": 130,
+    "top_count": 12,
+    "bottom_count": 12,
+    "left_count": 12,
+    "right_count": 12,
+    "placement_order": "clockwise"
+  },
+  "instances": [
+    {
+      "name": "MCLK",
+      "device": "PVDD1ANA",
+      "view_name": "layout",
+      "domain": "analog",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "right_1",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLA"
+        },
+        "VSS": {
+          "label": "GIOLA"
+        },
+        "VDDPST": {
+          "label": "VIOHA"
+        },
+        "VSSPST": {
+          "label": "GIOHA"
+        },
+        "AVDD": {
+          "label": "MCLK"
+        }
+      }
+    },
+    {
+      "name": "CDCKB",
+      "device": "PVDD1ANA",
+      "view_name": "layout",
+      "domain": "analog",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "right_3",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLA"
+        },
+        "VSS": {
+          "label": "GIOLA"
+        },
+        "VDDPST": {
+          "label": "VIOHA"
+        },
+        "VSSPST": {
+          "label": "GIOHA"
+        },
+        "AVDD": {
+          "label": "CDCKB"
+        }
+      }
+    },
+    {
+      "name": "VDCK",
+      "device": "PVDD1ANA",
+      "view_name": "layout",
+      "domain": "analog",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "right_5",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLA"
+        },
+        "VSS": {
+          "label": "GIOLA"
+        },
+        "VDDPST": {
+          "label": "VIOHA"
+        },
+        "VSSPST": {
+          "label": "GIOHA"
+        },
+        "AVDD": {
+          "label": "VDCK"
+        }
+      }
+    },
+    {
+      "name": "GDCK",
+      "device": "PVSS1ANA",
+      "view_name": "layout",
+      "domain": "analog",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "right_7",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLA"
+        },
+        "VSS": {
+          "label": "GIOLA"
+        },
+        "VDDPST": {
+          "label": "VIOHA"
+        },
+        "VSSPST": {
+          "label": "GIOHA"
+        },
+        "AVSS": {
+          "label": "GDCK"
+        }
+      }
+    },
+    {
+      "name": "VPID",
+      "device": "PVDD1ANA",
+      "view_name": "layout",
+      "domain": "analog",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "right_9",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLA"
+        },
+        "VSS": {
+          "label": "GIOLA"
+        },
+        "VDDPST": {
+          "label": "VIOHA"
+        },
+        "VSSPST": {
+          "label": "GIOHA"
+        },
+        "AVDD": {
+          "label": "VPID"
+        }
+      }
+    },
+    {
+      "name": "VNID",
+      "device": "PVDD1ANA",
+      "view_name": "layout",
+      "domain": "analog",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "right_11",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLA"
+        },
+        "VSS": {
+          "label": "GIOLA"
+        },
+        "VDDPST": {
+          "label": "VIOHA"
+        },
+        "VSSPST": {
+          "label": "GIOHA"
+        },
+        "AVDD": {
+          "label": "VNID"
+        }
+      }
+    },
+    {
+      "name": "IPPI",
+      "device": "PVDD1ANA",
+      "view_name": "layout",
+      "domain": "analog",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "right_13",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLA"
+        },
+        "VSS": {
+          "label": "GIOLA"
+        },
+        "VDDPST": {
+          "label": "VIOHA"
+        },
+        "VSSPST": {
+          "label": "GIOHA"
+        },
+        "AVDD": {
+          "label": "IPPI"
+        }
+      }
+    },
+    {
+      "name": "IPNI",
+      "device": "PVDD1ANA",
+      "view_name": "layout",
+      "domain": "analog",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "right_15",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLA"
+        },
+        "VSS": {
+          "label": "GIOLA"
+        },
+        "VDDPST": {
+          "label": "VIOHA"
+        },
+        "VSSPST": {
+          "label": "GIOHA"
+        },
+        "AVDD": {
+          "label": "IPNI"
+        }
+      }
+    },
+    {
+      "name": "VNSC",
+      "device": "PVDD1ANA",
+      "view_name": "layout",
+      "domain": "analog",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "right_17",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLA"
+        },
+        "VSS": {
+          "label": "GIOLA"
+        },
+        "VDDPST": {
+          "label": "VIOHA"
+        },
+        "VSSPST": {
+          "label": "GIOHA"
+        },
+        "AVDD": {
+          "label": "VNSC"
+        }
+      }
+    },
+    {
+      "name": "AVSF",
+      "device": "PVDD1ANA",
+      "view_name": "layout",
+      "domain": "analog",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "right_19",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLA"
+        },
+        "VSS": {
+          "label": "GIOLA"
+        },
+        "VDDPST": {
+          "label": "VIOHA"
+        },
+        "VSSPST": {
+          "label": "GIOHA"
+        },
+        "AVDD": {
+          "label": "AVSF"
+        }
+      }
+    },
+    {
+      "name": "AGSF",
+      "device": "PVSS1ANA",
+      "view_name": "layout",
+      "domain": "analog",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "right_21",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLA"
+        },
+        "VSS": {
+          "label": "GIOLA"
+        },
+        "VDDPST": {
+          "label": "VIOHA"
+        },
+        "VSSPST": {
+          "label": "GIOHA"
+        },
+        "AVSS": {
+          "label": "AGSF"
+        }
+      }
+    },
+    {
+      "name": "CKAZ",
+      "device": "PDDW0412SCDG",
+      "view_name": "layout",
+      "domain": "digital",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "right_23",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLD"
+        },
+        "VSS": {
+          "label": "GIOLD"
+        },
+        "VDDPST": {
+          "label": "VIOHD"
+        },
+        "VSSPST": {
+          "label": "GIOHD"
+        }
+      },
+      "io_type": "input"
+    },
+    {
+      "name": "CORNER_BOTTOM_RIGHT",
+      "device": "PCORNER",
+      "view_name": "layout",
+      "domain": "null",
+      "pad_width": 130,
+      "pad_height": 130,
+      "position": "bottom_right",
+      "type": "corner"
+    },
+    {
+      "name": "CKTM",
+      "device": "PDDW0412SCDG",
+      "view_name": "layout",
+      "domain": "digital",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "bottom_1",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLD"
+        },
+        "VSS": {
+          "label": "GIOLD"
+        },
+        "VDDPST": {
+          "label": "VIOHD"
+        },
+        "VSSPST": {
+          "label": "GIOHD"
+        }
+      },
+      "io_type": "input"
+    },
+    {
+      "name": "CONV",
+      "device": "PDDW0412SCDG",
+      "view_name": "layout",
+      "domain": "digital",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "bottom_3",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLD"
+        },
+        "VSS": {
+          "label": "GIOLD"
+        },
+        "VDDPST": {
+          "label": "VIOHD"
+        },
+        "VSSPST": {
+          "label": "GIOHD"
+        }
+      },
+      "io_type": "input"
+    },
+    {
+      "name": "RSTM",
+      "device": "PDDW0412SCDG",
+      "view_name": "layout",
+      "domain": "digital",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "bottom_5",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLD"
+        },
+        "VSS": {
+          "label": "GIOLD"
+        },
+        "VDDPST": {
+          "label": "VIOHD"
+        },
+        "VSSPST": {
+          "label": "GIOHD"
+        }
+      },
+      "io_type": "input"
+    },
+    {
+      "name": "DOFG",
+      "device": "PDDW0412SCDG",
+      "view_name": "layout",
+      "domain": "digital",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "bottom_7",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLD"
+        },
+        "VSS": {
+          "label": "GIOLD"
+        },
+        "VDDPST": {
+          "label": "VIOHD"
+        },
+        "VSSPST": {
+          "label": "GIOHD"
+        }
+      },
+      "io_type": "output"
+    },
+    {
+      "name": "CLKO",
+      "device": "PDDW0412SCDG",
+      "view_name": "layout",
+      "domain": "digital",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "bottom_9",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLD"
+        },
+        "VSS": {
+          "label": "GIOLD"
+        },
+        "VDDPST": {
+          "label": "VIOHD"
+        },
+        "VSSPST": {
+          "label": "GIOHD"
+        }
+      },
+      "io_type": "output"
+    },
+    {
+      "name": "DOTM",
+      "device": "PDDW0412SCDG",
+      "view_name": "layout",
+      "domain": "digital",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "bottom_11",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLD"
+        },
+        "VSS": {
+          "label": "GIOLD"
+        },
+        "VDDPST": {
+          "label": "VIOHD"
+        },
+        "VSSPST": {
+          "label": "GIOHD"
+        }
+      },
+      "io_type": "output"
+    },
+    {
+      "name": "GIOHD",
+      "device": "PVSS2CDG",
+      "view_name": "layout",
+      "domain": "digital",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "top_3",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLD"
+        },
+        "VSS": {
+          "label": "GIOLD"
+        },
+        "VDDPST": {
+          "label": "VIOHD"
+        },
+        "VSSPST": {
+          "label": "GIOHD"
+        }
+      }
+    },
+    {
+      "name": "DA14",
+      "device": "PDDW0412SCDG",
+      "view_name": "layout",
+      "domain": "digital",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "bottom_15",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLD"
+        },
+        "VSS": {
+          "label": "GIOLD"
+        },
+        "VDDPST": {
+          "label": "VIOHD"
+        },
+        "VSSPST": {
+          "label": "GIOHD"
+        }
+      },
+      "io_type": "output"
+    },
+    {
+      "name": "DA13",
+      "device": "PDDW0412SCDG",
+      "view_name": "layout",
+      "domain": "digital",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "bottom_17",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLD"
+        },
+        "VSS": {
+          "label": "GIOLD"
+        },
+        "VDDPST": {
+          "label": "VIOHD"
+        },
+        "VSSPST": {
+          "label": "GIOHD"
+        }
+      },
+      "io_type": "output"
+    },
+    {
+      "name": "DA12",
+      "device": "PDDW0412SCDG",
+      "view_name": "layout",
+      "domain": "digital",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "bottom_19",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLD"
+        },
+        "VSS": {
+          "label": "GIOLD"
+        },
+        "VDDPST": {
+          "label": "VIOHD"
+        },
+        "VSSPST": {
+          "label": "GIOHD"
+        }
+      },
+      "io_type": "output"
+    },
+    {
+      "name": "DA11",
+      "device": "PDDW0412SCDG",
+      "view_name": "layout",
+      "domain": "digital",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "bottom_21",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLD"
+        },
+        "VSS": {
+          "label": "GIOLD"
+        },
+        "VDDPST": {
+          "label": "VIOHD"
+        },
+        "VSSPST": {
+          "label": "GIOHD"
+        }
+      },
+      "io_type": "output"
+    },
+    {
+      "name": "DA10",
+      "device": "PDDW0412SCDG",
+      "view_name": "layout",
+      "domain": "digital",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "bottom_23",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLD"
+        },
+        "VSS": {
+          "label": "GIOLD"
+        },
+        "VDDPST": {
+          "label": "VIOHD"
+        },
+        "VSSPST": {
+          "label": "GIOHD"
+        }
+      },
+      "io_type": "output"
+    },
+    {
+      "name": "CORNER_BOTTOM_LEFT",
+      "device": "PCORNER",
+      "view_name": "layout",
+      "domain": "null",
+      "pad_width": 130,
+      "pad_height": 130,
+      "position": "bottom_left",
+      "type": "corner"
+    },
+    {
+      "name": "DA9",
+      "device": "PDDW0412SCDG",
+      "view_name": "layout",
+      "domain": "digital",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "left_1",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLD"
+        },
+        "VSS": {
+          "label": "GIOLD"
+        },
+        "VDDPST": {
+          "label": "VIOHD"
+        },
+        "VSSPST": {
+          "label": "GIOHD"
+        }
+      },
+      "io_type": "output"
+    },
+    {
+      "name": "DA8",
+      "device": "PDDW0412SCDG",
+      "view_name": "layout",
+      "domain": "digital",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "left_3",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLD"
+        },
+        "VSS": {
+          "label": "GIOLD"
+        },
+        "VDDPST": {
+          "label": "VIOHD"
+        },
+        "VSSPST": {
+          "label": "GIOHD"
+        }
+      },
+      "io_type": "output"
+    },
+    {
+      "name": "DA7",
+      "device": "PDDW0412SCDG",
+      "view_name": "layout",
+      "domain": "digital",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "left_5",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLD"
+        },
+        "VSS": {
+          "label": "GIOLD"
+        },
+        "VDDPST": {
+          "label": "VIOHD"
+        },
+        "VSSPST": {
+          "label": "GIOHD"
+        }
+      },
+      "io_type": "output"
+    },
+    {
+      "name": "DA6",
+      "device": "PDDW0412SCDG",
+      "view_name": "layout",
+      "domain": "digital",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "left_7",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLD"
+        },
+        "VSS": {
+          "label": "GIOLD"
+        },
+        "VDDPST": {
+          "label": "VIOHD"
+        },
+        "VSSPST": {
+          "label": "GIOHD"
+        }
+      },
+      "io_type": "output"
+    },
+    {
+      "name": "DA5",
+      "device": "PDDW0412SCDG",
+      "view_name": "layout",
+      "domain": "digital",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "left_9",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLD"
+        },
+        "VSS": {
+          "label": "GIOLD"
+        },
+        "VDDPST": {
+          "label": "VIOHD"
+        },
+        "VSSPST": {
+          "label": "GIOHD"
+        }
+      },
+      "io_type": "output"
+    },
+    {
+      "name": "DA4",
+      "device": "PDDW0412SCDG",
+      "view_name": "layout",
+      "domain": "digital",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "left_11",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLD"
+        },
+        "VSS": {
+          "label": "GIOLD"
+        },
+        "VDDPST": {
+          "label": "VIOHD"
+        },
+        "VSSPST": {
+          "label": "GIOHD"
+        }
+      },
+      "io_type": "output"
+    },
+    {
+      "name": "DA3",
+      "device": "PDDW0412SCDG",
+      "view_name": "layout",
+      "domain": "digital",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "left_13",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLD"
+        },
+        "VSS": {
+          "label": "GIOLD"
+        },
+        "VDDPST": {
+          "label": "VIOHD"
+        },
+        "VSSPST": {
+          "label": "GIOHD"
+        }
+      },
+      "io_type": "output"
+    },
+    {
+      "name": "DA2",
+      "device": "PDDW0412SCDG",
+      "view_name": "layout",
+      "domain": "digital",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "left_15",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLD"
+        },
+        "VSS": {
+          "label": "GIOLD"
+        },
+        "VDDPST": {
+          "label": "VIOHD"
+        },
+        "VSSPST": {
+          "label": "GIOHD"
+        }
+      },
+      "io_type": "output"
+    },
+    {
+      "name": "DA1",
+      "device": "PDDW0412SCDG",
+      "view_name": "layout",
+      "domain": "digital",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "left_17",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLD"
+        },
+        "VSS": {
+          "label": "GIOLD"
+        },
+        "VDDPST": {
+          "label": "VIOHD"
+        },
+        "VSSPST": {
+          "label": "GIOHD"
+        }
+      },
+      "io_type": "output"
+    },
+    {
+      "name": "DA0",
+      "device": "PDDW0412SCDG",
+      "view_name": "layout",
+      "domain": "digital",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "left_19",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLD"
+        },
+        "VSS": {
+          "label": "GIOLD"
+        },
+        "VDDPST": {
+          "label": "VIOHD"
+        },
+        "VSSPST": {
+          "label": "GIOHD"
+        }
+      },
+      "io_type": "output"
+    },
+    {
+      "name": "VIOHD",
+      "device": "PVDD2CDG",
+      "view_name": "layout",
+      "domain": "digital",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "left_21",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLD"
+        },
+        "VSS": {
+          "label": "GIOLD"
+        },
+        "VDDPST": {
+          "label": "VIOHD"
+        },
+        "VSSPST": {
+          "label": "GIOHD"
+        }
+      }
+    },
+    {
+      "name": "VIOLD",
+      "device": "PVDD1CDG",
+      "view_name": "layout",
+      "domain": "digital",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "left_23",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLD"
+        },
+        "VSS": {
+          "label": "GIOLD"
+        },
+        "VDDPST": {
+          "label": "VIOHD"
+        },
+        "VSSPST": {
+          "label": "GIOHD"
+        }
+      }
+    },
+    {
+      "name": "CORNER_TOP_LEFT",
+      "device": "PCORNER",
+      "view_name": "layout",
+      "domain": "null",
+      "pad_width": 130,
+      "pad_height": 130,
+      "position": "top_left",
+      "type": "corner"
+    },
+    {
+      "name": "GIOLD",
+      "device": "PVSS1CDG",
+      "view_name": "layout",
+      "domain": "digital",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "top_1",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLD"
+        },
+        "VSS": {
+          "label": "GIOLD"
+        },
+        "VDDPST": {
+          "label": "VIOHD"
+        },
+        "VSSPST": {
+          "label": "GIOHD"
+        }
+      }
+    },
+    {
+      "name": "GIOHA",
+      "device": "PVSS2CDG",
+      "view_name": "layout",
+      "domain": "analog",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "top_17",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLA"
+        },
+        "VSS": {
+          "label": "GIOLA"
+        },
+        "VDDPST": {
+          "label": "VIOHA"
+        },
+        "VSSPST": {
+          "label": "GIOHA"
+        }
+      }
+    },
+    {
+      "name": "AGSC",
+      "device": "PVSS1ANA",
+      "view_name": "layout",
+      "domain": "analog",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "top_7",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLA"
+        },
+        "VSS": {
+          "label": "GIOLA"
+        },
+        "VDDPST": {
+          "label": "VIOHA"
+        },
+        "VSSPST": {
+          "label": "GIOHA"
+        },
+        "AVSS": {
+          "label": "AGSC"
+        }
+      }
+    },
+    {
+      "name": "AVSC",
+      "device": "PVDD1ANA",
+      "view_name": "layout",
+      "domain": "analog",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "top_9",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLA"
+        },
+        "VSS": {
+          "label": "GIOLA"
+        },
+        "VDDPST": {
+          "label": "VIOHA"
+        },
+        "VSSPST": {
+          "label": "GIOHA"
+        },
+        "AVDD": {
+          "label": "AVSC"
+        }
+      }
+    },
+    {
+      "name": "DVSC",
+      "device": "PVDD1ANA",
+      "view_name": "layout",
+      "domain": "analog",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "top_11",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLA"
+        },
+        "VSS": {
+          "label": "GIOLA"
+        },
+        "VDDPST": {
+          "label": "VIOHA"
+        },
+        "VSSPST": {
+          "label": "GIOHA"
+        },
+        "AVDD": {
+          "label": "DVSC"
+        }
+      }
+    },
+    {
+      "name": "DGSC",
+      "device": "PVSS1ANA",
+      "view_name": "layout",
+      "domain": "analog",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "top_13",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLA"
+        },
+        "VSS": {
+          "label": "GIOLA"
+        },
+        "VDDPST": {
+          "label": "VIOHA"
+        },
+        "VSSPST": {
+          "label": "GIOHA"
+        },
+        "AVSS": {
+          "label": "DGSC"
+        }
+      }
+    },
+    {
+      "name": "VIOHA",
+      "device": "PVDD2CDG",
+      "view_name": "layout",
+      "domain": "analog",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "top_15",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLA"
+        },
+        "VSS": {
+          "label": "GIOLA"
+        },
+        "VDDPST": {
+          "label": "VIOHA"
+        },
+        "VSSPST": {
+          "label": "GIOHA"
+        }
+      }
+    },
+    {
+      "name": "GIOLA",
+      "device": "PVSS1CDG",
+      "view_name": "layout",
+      "domain": "analog",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "top_19",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLA"
+        },
+        "VSS": {
+          "label": "GIOLA"
+        },
+        "VDDPST": {
+          "label": "VIOHA"
+        },
+        "VSSPST": {
+          "label": "GIOHA"
+        }
+      }
+    },
+    {
+      "name": "VIOLA",
+      "device": "PVDD1CDG",
+      "view_name": "layout",
+      "domain": "analog",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "top_21",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLA"
+        },
+        "VSS": {
+          "label": "GIOLA"
+        },
+        "VDDPST": {
+          "label": "VIOHA"
+        },
+        "VSSPST": {
+          "label": "GIOHA"
+        }
+      }
+    },
+    {
+      "name": "VDCKB",
+      "device": "PVDD1ANA",
+      "view_name": "layout",
+      "domain": "analog",
+      "pad_width": 80,
+      "pad_height": 120,
+      "position": "top_23",
+      "type": "pad",
+      "pin_config": {
+        "VDD": {
+          "label": "VIOLA"
+        },
+        "VSS": {
+          "label": "GIOLA"
+        },
+        "VDDPST": {
+          "label": "VIOHA"
+        },
+        "VSSPST": {
+          "label": "GIOHA"
+        },
+        "AVDD": {
+          "label": "VDCKB"
+        }
+      }
+    },
+    {
+      "name": "CORNER_TOP_RIGHT",
+      "device": "PCORNER",
+      "view_name": "layout",
+      "domain": "null",
+      "pad_width": 130,
+      "pad_height": 130,
+      "position": "top_right",
+      "type": "corner"
+    },
+    {
+      "id": "inst_52",
+      "name": "filler_bottom_start",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "bottom_0",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_53",
+      "name": "filler_bottom_0_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "bottom_2",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_54",
+      "name": "filler_bottom_1_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "bottom_4",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_55",
+      "name": "filler_bottom_2_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "bottom_6",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_56",
+      "name": "filler_bottom_3_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "bottom_8",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_57",
+      "name": "filler_bottom_4_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "bottom_10",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_58",
+      "name": "filler_bottom_5_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "bottom_12",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_59",
+      "name": "filler_bottom_6_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "bottom_14",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_60",
+      "name": "filler_bottom_7_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "bottom_16",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_61",
+      "name": "filler_bottom_8_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "bottom_18",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_62",
+      "name": "filler_bottom_9_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "bottom_20",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_63",
+      "name": "filler_bottom_10_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "bottom_22",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_64",
+      "name": "filler_bottom_end",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "bottom_24",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_65",
+      "name": "filler_right_start",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "right_0",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_66",
+      "name": "filler_right_0_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "right_2",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_67",
+      "name": "filler_right_1_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "right_4",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_68",
+      "name": "filler_right_2_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "right_6",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_69",
+      "name": "filler_right_3_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "right_8",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_70",
+      "name": "filler_right_4_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "right_10",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_71",
+      "name": "filler_right_5_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "right_12",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_72",
+      "name": "filler_right_6_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "right_14",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_73",
+      "name": "filler_right_7_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "right_16",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_74",
+      "name": "filler_right_8_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "right_18",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_75",
+      "name": "filler_right_9_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "right_20",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_76",
+      "name": "blank_right_10_mid",
+      "device": "BLANK",
+      "type": "blank",
+      "position": "right_22",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_77",
+      "name": "filler_right_end",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "right_24",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_78",
+      "name": "filler_top_start",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "top_0",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_79",
+      "name": "filler_top_0_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "top_2",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_80",
+      "name": "blank_top_1_mid",
+      "device": "BLANK",
+      "type": "blank",
+      "position": "top_4",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_81",
+      "name": "filler_top_2_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "top_6",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_82",
+      "name": "filler_top_3_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "top_8",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_83",
+      "name": "filler_top_4_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "top_10",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_84",
+      "name": "filler_top_5_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "top_12",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_85",
+      "name": "filler_top_6_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "top_14",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_86",
+      "name": "filler_top_7_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "top_16",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_87",
+      "name": "filler_top_8_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "top_18",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_88",
+      "name": "filler_top_9_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "top_20",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_89",
+      "name": "filler_top_10_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "top_22",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_90",
+      "name": "filler_top_end",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "top_24",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_91",
+      "name": "filler_left_start",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "left_0",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_92",
+      "name": "filler_left_0_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "left_2",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_93",
+      "name": "filler_left_1_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "left_4",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_94",
+      "name": "filler_left_2_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "left_6",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_95",
+      "name": "filler_left_3_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "left_8",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_96",
+      "name": "filler_left_4_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "left_10",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_97",
+      "name": "filler_left_5_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "left_12",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_98",
+      "name": "filler_left_6_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "left_14",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_99",
+      "name": "filler_left_7_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "left_16",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_100",
+      "name": "filler_left_8_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "left_18",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_101",
+      "name": "filler_left_9_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "left_20",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_102",
+      "name": "filler_left_10_mid",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "left_22",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    },
+    {
+      "id": "inst_103",
+      "name": "filler_left_end",
+      "device": "PFILLER10",
+      "type": "filler",
+      "position": "left_24",
+      "filler_width": 10,
+      "filler_height": 120,
+      "view_name": "layout",
+      "pad_width": 10,
+      "pad_height": 120
+    }
+  ]
+}

@@ -62,6 +62,7 @@ tool_groups:
   io_ring:
     enabled: true
     tools:
+      - build_io_ring_confirmed_config
       - generate_io_ring_schematic
       - validate_intent_graph
       - generate_io_ring_layout

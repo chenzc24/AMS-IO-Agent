@@ -1,20 +1,15 @@
 
-;; Open or create cellview
-libName = "llm_test"
-cellName = "test_v2"
-viewName = "layout"
-
-lib = ddGetObj(libName)
-when(!lib
-    lib = dbCreateLib(libName)
-    printf("Library %s created.\n" libName)
+;; SKILL tool to open llm_test/test_v2/layout
+procedure( open_llm_test()
+    let((lib "llm_test" cell "test_v2" view "layout" cv)
+        cv = dbOpenCellViewByType(lib cell view "maskLayout" "w")
+        if(cv then
+            printf("Successfully opened %s/%s/%s\n" lib cell view)
+            hiSetCurrentWindow(cv->window)
+            t
+        else
+            printf("Failed to open cellview\n")
+            nil
+        )
+    )
 )
-cv = dbOpenCellViewByType(lib cellName viewName "maskLayout" "w")
-if(cv then
-    printf("CellView opened.\n")
-else
-    cv = dbCreateCellViewByType(lib cellName viewName "maskLayout" "w")
-    printf("CellView created.\n")
-)
-geSetEditCellView(cv)
-return(sprintf("CellView %s/%s/%s ready." libName cellName viewName))

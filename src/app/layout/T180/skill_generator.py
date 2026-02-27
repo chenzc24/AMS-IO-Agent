@@ -9,7 +9,6 @@ from typing import List, Dict, Tuple
 from ..T28.inner_pad_handler import InnerPadHandler
 from ..position_calculator import PositionCalculator
 from ..voltage_domain import VoltageDomainHandler
-from .auto_filler import get_corner_domain
 
 class SkillGeneratorT180:
     """SKILL Script Generator for T180 process node"""
@@ -427,16 +426,17 @@ class SkillGeneratorT180:
         
         return skill_commands
 
-    def generate_psub2(self, outer_pads: List[dict], corners: List[dict], ring_config: dict) -> List[str]:
+    def generate_psub2(self, all_components: List[dict], corners: List[dict], ring_config: dict) -> List[str]:
         chip_width = ring_config.get("chip_width", 0)
         chip_height = ring_config.get("chip_height", 0)
         pad_width = ring_config.get("pad_width", 80)
         pad_height = ring_config.get("pad_height", 120)
         skill_commands = []
-        if not outer_pads:
+        if not all_components:
             return skill_commands
         skill_commands.append('; --- PSUB2 edge rectangles and corner polygons')
-
+        
+        outer_pads = [comp for comp in all_components if comp.get("type") == "pad"]
         for pads in outer_pads:
             if pads.get("device") == "PVSS1CDG" or pads.get("device") == "PDDW0412SCDG":
                 continue
@@ -517,77 +517,34 @@ class SkillGeneratorT180:
         # 4 edge rectangles
         placement_order = self.config.get("placement_order", "counterclockwise")        
         # Sort components by position
-        sorted_components = self.position_calculator.sort_components_by_position(outer_pads, placement_order)        
-        # Separate pads and corners
-        pads = [comp for comp in sorted_components if comp.get("type") == "pad"]     
-        # Group pads by orientation
-        oriented_pads = {"R0": [], "R90": [], "R180": [], "R270": []}
-        for pad in pads:
-            orientation = pad.get("orientation", "")
-            if orientation in oriented_pads:
-                oriented_pads[orientation].append(pad)
+        side_components = [comp for comp in all_components if comp.get("type") != "corner"]
+        sorted_components = self.position_calculator.sort_components_by_position(side_components, placement_order)        
         
         cut_orient_index = {"R0": [], "R90": [], "R180": [], "R270": []}
-        
         gap_width = 5     # gap width of PSUB2 between different voltage domains
-        for orientation, pad_list in oriented_pads.items():
-            # operate corner
-            if orientation == "R180":  # Top edge
-                # Between top-left corner and first pad
-                first_pad = pad_list[0]
-                fpw = first_pad.get("pad_width") or pad_width
-                x = first_pad["position"][0] - fpw
-                y = chip_height
-                corner_domain = get_corner_domain(oriented_pads, "R180")
-                if corner_domain != first_pad.get("domain"):
-                    cut_orient_index[orientation].append(x - gap_width)
-            elif orientation == "R90":  # Right edge
-                # Between top-right corner and first pad
-                first_pad = pad_list[0]
-                fpw = first_pad.get("pad_width") or pad_width
-                x = chip_width
-                y = first_pad["position"][1] + fpw
-                corner_domain = get_corner_domain(oriented_pads, "R90")
-                if corner_domain != first_pad.get("domain"):
-                    cut_orient_index[orientation].append(y + gap_width)
-            elif orientation == "R0":  # Bottom edge
-                # Between bottom-right corner and first pad
-                first_pad = pad_list[0]
-                fpw = first_pad.get("pad_width") or pad_width
-                x = first_pad["position"][0] + fpw
-                y = 0
-                corner_domain = get_corner_domain(oriented_pads, "R0")
-                if corner_domain != first_pad.get("domain"):
-                    cut_orient_index[orientation].append(x + gap_width)
-            elif orientation == "R270":  # Left edge
-                # Between bottom-left corner and first pad
-                first_pad = pad_list[0]
-                fpw = first_pad.get("pad_width") or pad_width
-                x = 0
-                y = first_pad["position"][1] - fpw
-                corner_domain = get_corner_domain(oriented_pads, "R270")
-                if corner_domain != first_pad.get("domain"):
-                    cut_orient_index[orientation].append(y - gap_width)
+        
+        blanks = [comp for comp in sorted_components if comp.get("type") == "blank"]
+        for blank in blanks:
+            orientation = blank.get("orientation", "")
+            if orientation not in cut_orient_index:
+                continue
             
-            for i in range(len(pad_list) - 1):
-                curr_pad = pad_list[i]
-                next_pad = pad_list[i + 1]     
-                # Calculate cut position
-                if curr_pad["domain"] == next_pad["domain"]:
-                    continue
-                else:
-                    if orientation == "R0":  # Bottom edge
-                        x = curr_pad["position"][0] - gap_width
-                        cut_orient_index[orientation].append(x)
-                    elif orientation == "R90":  # Right edge
-                        y = curr_pad["position"][1] - gap_width
-                        cut_orient_index[orientation].append(y)
-                    elif orientation == "R180":  # Top edge
-                        x = curr_pad["position"][0] + gap_width
-                        cut_orient_index[orientation].append(x)
-                    elif orientation == "R270":  # Left edge
-                        y = curr_pad["position"][1] + gap_width
-                        cut_orient_index[orientation].append(y)
+            bw = blank.get("filler_width", blank.get("pad_width", 10))
+            try:
+                bw = float(bw)
+            except (ValueError, TypeError):
+                bw = 10.0
+                
+            pos = blank.get("position", [0, 0])
+            
+            if orientation == "R0":
+                cut_orient_index[orientation].append(pos[0] + bw / 2)
+            elif orientation == "R90":
+                cut_orient_index[orientation].append(pos[1] + bw / 2)
+            elif orientation == "R180":
+                cut_orient_index[orientation].append(pos[0] - bw / 2)
+            elif orientation == "R270":
+                cut_orient_index[orientation].append(pos[1] - bw / 2)
 
         
         # helper to compute edge segments with possibly multiple cuts for PSUB2

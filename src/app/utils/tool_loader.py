@@ -51,6 +51,7 @@ TOOL_REGISTRY = {
     "run_pex": ("src.tools.pex_runner_tool", "run_pex"),
     
     # IO Ring
+    "build_io_ring_confirmed_config": ("src.tools.io_ring_generator_tool", "build_io_ring_confirmed_config"),
     "generate_io_ring_schematic": ("src.tools.io_ring_generator_tool", "generate_io_ring_schematic"),
     "validate_intent_graph": ("src.tools.io_ring_generator_tool", "validate_intent_graph"),
     "generate_io_ring_layout": ("src.tools.io_ring_generator_tool", "generate_io_ring_layout"),
@@ -180,6 +181,7 @@ def get_default_config() -> Dict[str, Any]:
         "io_ring": {
             "enabled": True,
             "tools": [
+                "build_io_ring_confirmed_config",
                 "generate_io_ring_schematic",
                 "validate_intent_graph",
                 "generate_io_ring_layout",

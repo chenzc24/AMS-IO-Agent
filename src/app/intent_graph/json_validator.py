@@ -37,17 +37,53 @@ def validate_config(config: Dict[str, Any]) -> bool:
         print("❌ Error: ring_config missing width/height or top_count/bottom_count/left_count/right_count fields")
         return False
     
+    expected_counts = None
+
+    def _as_count(value, default=0):
+        """Best-effort normalize count-like values to int."""
+        if value is None:
+            return default
+        try:
+            return int(float(value))
+        except (TypeError, ValueError):
+            return default
+
     # If using count fields, derive width and height for validation
     if has_count_fields and not has_width_height:
-        width = max(ring_config.get('top_count', 0), ring_config.get('bottom_count', 0))
-        height = max(ring_config.get('left_count', 0), ring_config.get('right_count', 0))
+        top_count = _as_count(ring_config.get('top_count', 0))
+        bottom_count = _as_count(ring_config.get('bottom_count', 0))
+        left_count = _as_count(ring_config.get('left_count', 0))
+        right_count = _as_count(ring_config.get('right_count', 0))
+
+        if min(top_count, bottom_count, left_count, right_count) <= 0:
+            print("❌ Error: top_count/bottom_count/left_count/right_count must be positive integers")
+            return False
+
+        expected_counts = {
+            'top': top_count,
+            'bottom': bottom_count,
+            'left': left_count,
+            'right': right_count,
+        }
+
+        width = max(top_count, bottom_count)
+        height = max(left_count, right_count)
         ring_config['width'] = width
         ring_config['height'] = height
     else:
-        width = ring_config['width']
-        height = ring_config['height']
-    if not isinstance(width, int) or not isinstance(height, int) or width <= 0 or height <= 0:
-        print("❌ Error: width and height must be positive integers")
+        width = _as_count(ring_config.get('width', 0))
+        height = _as_count(ring_config.get('height', 0))
+
+    if expected_counts is None:
+        expected_counts = {
+            'left': height,
+            'right': height,
+            'top': width,
+            'bottom': width,
+        }
+
+    if width <= 0 or height <= 0:
+        print("❌ Error: width and height must be positive")
         return False
     
     # Validate placement_order
@@ -112,7 +148,7 @@ def validate_config(config: Dict[str, Any]) -> bool:
             return False
         
         # Validate position format
-        if not validate_position_format(position, width, height):
+        if not validate_position_format(position, width, height, expected_counts):
             print(f"❌ Error: instance[{i}] {name}'s position format is incorrect")
             return False
         
@@ -183,12 +219,11 @@ def validate_config(config: Dict[str, Any]) -> bool:
         print(f"❌ Error: Incorrect corner count, expected 4, actual {len(corner_positions)}")
         return False
     
-    # Validate pad count for each side (judge each side separately)
-    # width is pad count for each of top and bottom sides, height is pad count for each of left and right sides
-    expected_left = height   # Left side pad count
-    expected_right = height  # Right side pad count
-    expected_top = width     # Top side pad count
-    expected_bottom = width  # Bottom side pad count
+    # Validate pad count for each side independently
+    expected_left = expected_counts['left']
+    expected_right = expected_counts['right']
+    expected_top = expected_counts['top']
+    expected_bottom = expected_counts['bottom']
     
     if position_counts['left'] != expected_left:
         print(f"❌ Error: Left side pad count incorrect, expected {expected_left}, actual {position_counts['left']}")
@@ -259,8 +294,16 @@ def validate_device_suffix(device: str, position: str, process_node: str = "T28"
     
     return True
 
-def validate_position_format(position: str, width: int, height: int) -> bool:
+def validate_position_format(position: str, width: int, height: int, side_limits: Dict[str, int] = None) -> bool:
     """Validate position format correctness"""
+    if side_limits is None:
+        side_limits = {
+            'left': height,
+            'right': height,
+            'top': width,
+            'bottom': width,
+        }
+
     # Corner positions
     if position in ['top_left', 'top_right', 'bottom_left', 'bottom_right']:
         return True
@@ -272,10 +315,10 @@ def validate_position_format(position: str, width: int, height: int) -> bool:
         side = match.group(1)
         index = int(match.group(2))
         
-        if side in ['left', 'right']:
-            return 0 <= index < height
-        else:  # top, bottom
-            return 0 <= index < width
+        limit = side_limits.get(side)
+        if not isinstance(limit, int) or limit <= 0:
+            return False
+        return 0 <= index < limit
     
     # Inner ring pad positions
     pattern = r'^(left|right|top|bottom)_(\d+)_(\d+)$'
@@ -285,10 +328,10 @@ def validate_position_format(position: str, width: int, height: int) -> bool:
         index1 = int(match.group(2))
         index2 = int(match.group(3))
         
-        if side in ['left', 'right']:
-            return 0 <= index1 < height and 0 <= index2 < height and index1 != index2
-        else:  # top, bottom
-            return 0 <= index1 < width and 0 <= index2 < width and index1 != index2
+        limit = side_limits.get(side)
+        if not isinstance(limit, int) or limit <= 0:
+            return False
+        return 0 <= index1 < limit and 0 <= index2 < limit and index1 != index2
     
     return False
 

@@ -8,7 +8,8 @@ Includes PSUB2 generation specific to T180
 
 import os
 import json
-from typing import Dict, Tuple, List
+import re
+from typing import Dict, Tuple, List, Optional
 
 from ..device_classifier import DeviceClassifier
 from ..voltage_domain import VoltageDomainHandler
@@ -18,9 +19,10 @@ from ..layout_validator import LayoutValidator
 from ..T28.inner_pad_handler import InnerPadHandler
 from .skill_generator import SkillGeneratorT180
 from .auto_filler import AutoFillerGeneratorT180
+from .confirmed_config_builder import build_confirmed_config_from_io_config
 from ..process_node_config import get_process_node_config
 from .layout_visualizer import visualize_layout_T180, visualize_layout_from_components_T180
-from pathlib import Path
+
 
 
 class LayoutGeneratorT180:
@@ -76,29 +78,182 @@ class LayoutGeneratorT180:
     def calculate_chip_size(self, layout_components: List[dict]) -> Tuple[int, int]:
         """Calculate chip size based on layout components"""
         return self.position_calculator.calculate_chip_size(layout_components)
+
+    def _extract_relative_position(self, instance: dict) -> str:
+        """Extract relative position string from instance fields."""
+        raw_position = instance.get("position", "")
+        if isinstance(raw_position, str):
+            return raw_position
+        return ""
+
+    def _parse_side_index(self, relative_position: str) -> Tuple[Optional[str], Optional[int]]:
+        """Parse side-index format: top_0/right_2/bottom_5/left_1."""
+        if not isinstance(relative_position, str):
+            return None, None
+        parts = relative_position.split("_")
+        if len(parts) == 2 and parts[0] in {"top", "right", "bottom", "left"} and parts[1].isdigit():
+            return parts[0], int(parts[1])
+        return None, None
+
+    def _get_component_type(self, instance: dict) -> str:
+        """Resolve component type using explicit type first, then device."""
+        comp_type = instance.get("type")
+        if isinstance(comp_type, str) and comp_type:
+            return comp_type
+
+        device = str(instance.get("device", ""))
+        if DeviceClassifier.is_corner_device(device, "T180"):
+            return "corner"
+        if DeviceClassifier.is_filler_device(device, "T180"):
+            return "filler"
+        if device.upper() == "BLANK":
+            return "blank"
+        return "pad"
+
+    def _resolve_component_geometry(self, instance: dict, component_type: str, ring_config: dict) -> Tuple[float, float]:
+        """Resolve geometry by component type for T180.
+
+        - pad/corner: use pad_width/pad_height defaults
+        - filler/blank: use pad_width/pad_height; infer PFILLERxx width; blank defaults to 10
+        """
+        default_pad_width = float(ring_config.get("pad_width", self.config.get("pad_width", 80)))
+        default_pad_height = float(ring_config.get("pad_height", self.config.get("pad_height", 120)))
+
+        if component_type not in {"filler", "blank"}:
+            width = instance.get("pad_width", default_pad_width)
+            height = instance.get("pad_height", default_pad_height)
+            width = float(width) if isinstance(width, (int, float)) else default_pad_width
+            height = float(height) if isinstance(height, (int, float)) else default_pad_height
+            return width, height
+
+        width = instance.get("pad_width")
+        height = instance.get("pad_height")
+
+        if not isinstance(width, (int, float)):
+            match = re.search(r"PFILLER(\d+)", str(instance.get("device", "")).upper())
+            if match:
+                width = int(match.group(1))
+            elif component_type == "blank":
+                width = 10
+            else:
+                pad_like = instance.get("pad_width")
+                width = pad_like if isinstance(pad_like, (int, float)) and float(pad_like) <= 20 else 10
+
+        if not isinstance(height, (int, float)):
+            pad_like_h = instance.get("pad_height")
+            height = pad_like_h if isinstance(pad_like_h, (int, float)) else default_pad_height
+
+        return float(width), float(height)
+
+    def _build_t180_side_sequences(self, instances: List[dict], ring_config: dict) -> Dict[str, dict]:
+        """Build per-side cumulative width map for side-indexed components."""
+        placement_order = ring_config.get("placement_order", "counterclockwise")
+        side_index_widths: Dict[str, Dict[int, float]] = {
+            "top": {},
+            "right": {},
+            "bottom": {},
+            "left": {},
+        }
+
+        for instance in instances:
+            if instance.get("type") == "inner_pad":
+                continue
+            side, index = self._parse_side_index(self._extract_relative_position(instance))
+            if side is None or index is None:
+                continue
+            if index not in side_index_widths[side]:
+                comp_type = self._get_component_type(instance)
+                width, _ = self._resolve_component_geometry(instance, comp_type, ring_config)
+                side_index_widths[side][index] = width
+
+        sequence_map: Dict[str, dict] = {}
+        for side, idx_map in side_index_widths.items():
+            if not idx_map:
+                sequence_map[side] = {"max_index": -1, "prefix_sum": {}}
+                continue
+
+            max_index = max(idx_map.keys())
+            ranked = []
+            for logical_index, width in idx_map.items():
+                real_index = logical_index if placement_order == "clockwise" else (max_index - logical_index)
+                ranked.append((real_index, logical_index, width))
+            ranked.sort(key=lambda item: item[0])
+
+            cumulative = 0.0
+            prefix_sum: Dict[int, float] = {}
+            for _, logical_index, width in ranked:
+                cumulative += width
+                prefix_sum[logical_index] = cumulative
+
+            sequence_map[side] = {"max_index": max_index, "prefix_sum": prefix_sum}
+
+        return sequence_map
+
+    def _calculate_t180_cumulative_position(
+        self,
+        relative_position: str,
+        ring_config: dict,
+        side_sequences: Dict[str, dict],
+    ) -> Optional[Tuple[List[float], str]]:
+        """Calculate T180 side component position by cumulative sequence width."""
+        chip_width = ring_config.get("chip_width")
+        chip_height = ring_config.get("chip_height")
+        if not isinstance(chip_width, (int, float)):
+            chip_width = 2250
+        if not isinstance(chip_height, (int, float)):
+            chip_height = 2160
+        corner_size = ring_config.get("corner_size", self.config.get("corner_size", 130))
+
+        if relative_position == "top_left":
+            return [0, chip_height], "R270"
+        if relative_position == "top_right":
+            return [chip_width, chip_height], "R180"
+        if relative_position == "bottom_left":
+            return [0, 0], "R0"
+        if relative_position == "bottom_right":
+            return [chip_width, 0], "R90"
+
+        side, logical_index = self._parse_side_index(relative_position)
+        if side is None or logical_index is None:
+            return None
+
+        side_info = side_sequences.get(side, {})
+        prefix_sum = side_info.get("prefix_sum", {})
+        if logical_index not in prefix_sum:
+            return None
+
+        cumulative_distance = prefix_sum[logical_index]
+        if side == "top":
+            return [corner_size + cumulative_distance, chip_height], "R180"
+        if side == "bottom":
+            return [chip_width - corner_size - cumulative_distance, 0], "R0"
+        if side == "left":
+            return [0, corner_size + cumulative_distance], "R270"
+        if side == "right":
+            return [chip_width, chip_height - corner_size - cumulative_distance], "R90"
+        return None
     
-    def convert_relative_to_absolute(self, instances: List[dict], ring_config: dict) -> List[dict]:
-        """Convert relative positions to absolute positions for 180nm format"""
+    def convert_relative_to_absolute(self, instances: List[dict], ring_config: dict, require_corners: bool = True) -> List[dict]:
+        """Convert relative positions to absolute positions for 180nm format.
+
+        Supports mixed inputs:
+        - relative position strings (converted)
+        - absolute [x, y] positions (kept, orientation preserved if present)
+        """
         converted_components = []
         inner_pads = []
+        side_sequences = self._build_t180_side_sequences(instances, ring_config)
         
         for instance in instances:
-            relative_pos = instance.get("position", "")
+            raw_position = instance.get("position", "")
             name = instance.get("name", "")
+            relative_pos = self._extract_relative_position(instance)
             # Use device field
             device = instance.get("device", "")
             if not device:
                 raise ValueError(f"❌ Error: Instance '{name}' must have 'device' field")
             
-            component_type = instance.get("type")
-            if not component_type:
-                # Infer type from device
-                if DeviceClassifier.is_corner_device(device, "T180"):
-                    component_type = "corner"
-                elif DeviceClassifier.is_filler_device(device, "T180"):
-                    component_type = "filler"
-                else:
-                    component_type = "pad"
+            component_type = self._get_component_type(instance)
             
             io_direction = instance.get("io_direction", "")
             io_type = instance.get("io_type", "")
@@ -106,18 +261,26 @@ class LayoutGeneratorT180:
             pin_config = instance.get("pin_config", {})
             domain = instance.get("domain", "")
             view_name = instance.get("view_name", "layout")
-            pad_width = instance.get("pad_width")
-            pad_height = instance.get("pad_height")
+            geom_width, geom_height = self._resolve_component_geometry(instance, component_type, ring_config)
             
             if component_type == "inner_pad":
                 inner_pads.append(instance)
                 continue
-            
-            # Calculate position (matching merge_source: pass instance parameter)
-            if component_type == "filler":
-                position, orientation = self.position_calculator.calculate_filler_position_from_relative(relative_pos, ring_config, instance)
+
+            has_relative_semantics = isinstance(relative_pos, str) and bool(relative_pos)
+            if isinstance(raw_position, (list, tuple)) and len(raw_position) == 2 and not has_relative_semantics:
+                position = [raw_position[0], raw_position[1]]
+                orientation = instance.get("orientation", "R0")
             else:
-                position, orientation = self.position_calculator.calculate_position_from_relative(relative_pos, ring_config, instance)
+                cumulative_result = self._calculate_t180_cumulative_position(relative_pos, ring_config, side_sequences)
+                if cumulative_result is not None:
+                    position, orientation = cumulative_result
+                else:
+                    # Fallback to shared legacy calculator for non side-index formats.
+                    if component_type in {"filler", "blank"}:
+                        position, orientation = self.position_calculator.calculate_filler_position_from_relative(relative_pos, ring_config, instance)
+                    else:
+                        position, orientation = self.position_calculator.calculate_position_from_relative(relative_pos, ring_config, instance)
             
             # Build component configuration - use device field
             component = {
@@ -128,11 +291,15 @@ class LayoutGeneratorT180:
                 "domain": domain,
                 "position": position,
                 "orientation": orientation,
-                "pad_width": pad_width,
-                "pad_height": pad_height
             }
+            if component_type in {"filler", "blank"}:
+                component["pad_width"] = geom_width
+                component["pad_height"] = geom_height
+            else:
+                component["pad_width"] = geom_width
+                component["pad_height"] = geom_height
             
-            if relative_pos:
+            if has_relative_semantics:
                 component["position_str"] = relative_pos
             
             # 180nm uses io_type, fallback to io_direction
@@ -192,111 +359,78 @@ class LayoutGeneratorT180:
         return converted_components
 
 
-def generate_layout_from_json(json_file: str, output_file: str = "generated_layout.il"):
-    """Generate 180nm layout from JSON file"""
-    print(f"📖 Reading intent graph file: {json_file}")
-    print(f"🔧 Using process node: 180nm")
-    
-    with open(json_file, 'r', encoding='utf-8') as f:
-        config = json.load(f)
-    
-    instances = config.get("instances", [])
-    ring_config = config.get("ring_config", {})
-    
-    # Override process_node if specified
-    if "process_node" in ring_config:
-        ring_config["process_node"] = "T180"
-    
-    generator = LayoutGeneratorT180()
-    
-    # Normalize ring_config format
-    if "width" in ring_config and "chip_width" not in ring_config:
-        width = ring_config.get("width", 3)
-        height = ring_config.get("height", 3)
-        pad_width = ring_config.get("pad_width", generator.config["pad_width"])
-        pad_height = ring_config.get("pad_height", generator.config["pad_height"])
-        corner_size = ring_config.get("corner_size", generator.config["corner_size"])
-        pad_spacing = ring_config.get("pad_spacing", generator.config["pad_spacing"])
-        
-        ring_config["chip_width"] = width * pad_spacing + corner_size * 2
-        ring_config["chip_height"] = height * pad_spacing + corner_size * 2
-        
-        if "top_count" not in ring_config:
-            ring_config["top_count"] = width
-        if "bottom_count" not in ring_config:
-            ring_config["bottom_count"] = width
-        if "left_count" not in ring_config:
-            ring_config["left_count"] = height
-        if "right_count" not in ring_config:
-            ring_config["right_count"] = height
-    
-    # Merge top-level config
-    if "library_name" in config and "library_name" not in ring_config:
-        ring_config["library_name"] = config["library_name"]
-    if "cell_name" in config and "cell_name" not in ring_config:
-        ring_config["cell_name"] = config["cell_name"]
-    
-    generator.set_config(ring_config)
-    if "pad_width" not in ring_config:
-        ring_config["pad_width"] = generator.config["pad_width"]
-    if "pad_height" not in ring_config:
-        ring_config["pad_height"] = generator.config["pad_height"]
-    if "corner_size" not in ring_config:
-        ring_config["corner_size"] = generator.config["corner_size"]
-    if "pad_spacing" not in ring_config:
-        ring_config["pad_spacing"] = generator.config["pad_spacing"]
-    if "library_name" not in ring_config:
-        ring_config["library_name"] = generator.config["library_name"]
-    if "view_name" not in ring_config:
-        ring_config["view_name"] = generator.config["view_name"]
-    if "device_masters" not in ring_config:
-        ring_config["device_masters"] = generator.config.get("device_masters", {})
-    
-    print("✅ Configuration parameters set")
-    
-    # Convert relative positions
-    if any("position" in instance and "_" in str(instance["position"]) for instance in instances):
-        instances = generator.convert_relative_to_absolute(instances, ring_config)
-    
-    # Separate components
-    outer_pads = []
-    inner_pads = []
-    corners = []
-    
-    for instance in instances:
-        if instance.get("type") == "inner_pad":
-            inner_pads.append(instance)
-        elif instance.get("type") == "pad":
-            outer_pads.append(instance)
-        elif instance.get("type") == "corner":
-            corners.append(instance)
-    
-    print(f"📊 Outer ring pads: {len(outer_pads)}")
-    print(f"📊 Inner ring pads: {len(inner_pads)}")
-    print(f"📊 Corners: {len(corners)}")
-    
-    # Validate
-    validation_components = outer_pads + corners
-    process_node = ring_config.get("process_node", "T180")
-    validation_result = generator.layout_validator.validate_layout_rules(validation_components, process_node)
-    if not validation_result["valid"]:
-        print(f"❌ Layout rule validation failed: {validation_result['message']}")
-        return None
-    
-    # Check fillers - use device field
-    all_instances = instances
-    existing_fillers = [comp for comp in all_instances if comp.get("type") == "filler" or 
-                        generator.classifier.is_filler(comp.get("device", ""))]
-    
-    if existing_fillers:
-        print(f"🔍 Detected filler components in JSON: {len(existing_fillers)} fillers")
-        print("📝 Skipping auto-filler generation, using components defined in JSON")
-        all_components_with_fillers = validation_components
-    else:
-        all_components_with_fillers = generator.auto_filler_generator.auto_insert_fillers_with_inner_pads(validation_components, inner_pads)
-    
-    # Generate SKILL script
+def generate_layout_skill_from_components(
+    generator: LayoutGeneratorT180,
+    ring_config: dict,
+    all_components_with_fillers: List[dict],
+    inner_pads: List[dict],
+    output_file: str,
+):
+    """Generate 180nm layout SKILL script from finalized components only."""
     print("🚀 Starting Layout Skill script generation...")
+
+    def ensure_unique_nonfunctional_names(components: List[dict]) -> List[dict]:
+        used_names = set()
+        for component in components:
+            if not isinstance(component, dict):
+                continue
+
+            comp_type = component.get("type")
+            device = str(component.get("device", ""))
+            is_nonfunctional = comp_type in {"filler", "blank"} or generator.classifier.is_filler(device)
+
+            raw_name = component.get("name")
+            name = str(raw_name).strip() if raw_name is not None else ""
+
+            if not is_nonfunctional:
+                if name:
+                    used_names.add(name)
+                continue
+
+            base_name = name or f"{comp_type or 'instance'}"
+            candidate = base_name
+
+            if candidate in used_names:
+                relative_pos = component.get("position_str")
+                if not isinstance(relative_pos, str) or not relative_pos:
+                    pos_field = component.get("position")
+                    relative_pos = pos_field if isinstance(pos_field, str) and pos_field else ""
+
+                candidate = f"{base_name}_{relative_pos}" if relative_pos else base_name
+                dedup_index = 1
+                while candidate in used_names:
+                    candidate = f"{base_name}_{dedup_index}"
+                    dedup_index += 1
+
+                component["name"] = candidate
+
+            used_names.add(candidate)
+
+        return components
+
+    final_components_input = list(all_components_with_fillers)
+    if not any(comp.get("type") == "inner_pad" for comp in final_components_input) and inner_pads:
+        final_components_input.extend(inner_pads)
+
+    final_components = generator.convert_relative_to_absolute(
+        final_components_input,
+        ring_config,
+        require_corners=False,
+    )
+    final_components = ensure_unique_nonfunctional_names(final_components)
+
+    outer_pads = [comp for comp in final_components if comp.get("type") == "pad"]
+    corners = [comp for comp in final_components if comp.get("type") == "corner"]
+    inner_pads = [comp for comp in final_components if comp.get("type") == "inner_pad"]
+    all_instances = final_components
+    all_components_with_fillers = [comp for comp in final_components if comp.get("type") != "inner_pad"]
+    filler_components = [
+        comp
+        for comp in all_instances
+        if comp.get("type") != "blank"
+        and (comp.get("type") == "filler" or generator.classifier.is_filler(comp.get("device", "")))
+    ]
+
     skill_commands = []
     
     skill_commands.append("cv = geGetWindowCellView()")
@@ -330,7 +464,11 @@ def generate_layout_from_json(json_file: str, output_file: str = "generated_layo
             pad70_orient = orient_map.get(orientation, "R0")
             
             # Centering along tangent using |pad_width - 70| correction (half for centering)
-            pad_w = component.get("pad_width", ring_config.get("pad_width", 80))
+            pad_w = component.get("pad_width")
+            if not isinstance(pad_w, (int, float)):
+                pad_w = ring_config.get("pad_width")
+            if not isinstance(pad_w, (int, float)):
+                pad_w = generator.config.get("pad_width", 80)
             PAD_width = 70
             center_correction = abs(pad_w - PAD_width) / 2
             
@@ -357,40 +495,27 @@ def generate_layout_from_json(json_file: str, output_file: str = "generated_layo
     
     # 2. PSUB2_layer Drawing (matching merge_source)
     skill_commands.append("; ==================== PSUB2 Layer ====================")
-    PSUB2_commands = generator.skill_generator.generate_psub2(outer_pads, corners, ring_config)
+    PSUB2_commands = generator.skill_generator.generate_psub2(all_components_with_fillers, corners, ring_config)
     skill_commands.extend(PSUB2_commands)
     skill_commands.append("")
     
     # 3. Filler components (matching merge_source)
     skill_commands.append("; ==================== Filler Components ====================")
     
-    if existing_fillers:
-        # If JSON has fillers, extract filler components from instances
-        for instance in all_instances:
-            if instance.get("type") == "filler" or generator.classifier.is_filler(instance.get("device", "")):
-                # Use already converted absolute positions
-                position = instance.get("position", [0, 0])
-                orientation = instance.get("orientation", "R0")
-                device = instance.get("device", "")
-                name = instance.get("name", "")
-                x, y = position
-                lib = ring_config.get("library_name", generator.config.get("library_name", "tpd018bcdnv5"))
-                view = instance.get("view_name", ring_config.get("view_name", "layout"))
-                skill_commands.append(f'dbCreateParamInstByMasterName(cv "{lib}" "{device}" "{view}" "{name}" list({x} {y}) "{orientation}")')
-    else:
-        # If JSON does not have fillers, use auto-generated fillers
-        # Skip blank types (they are for visualization only, not SKILL generation)
-        for filler in all_components_with_fillers[len(validation_components):]:  # Only process filler part
-            if filler.get("type") == "filler":
-                x, y = filler["position"]
-                orientation = filler["orientation"]
-                # Support both device and device_type fields (180nm uses device_type)
-                device = filler.get("device", "PFILLER10")
-                name = filler["name"]
-                lib = ring_config.get("library_name", generator.config.get("library_name", "tpd018bcdnv5"))
-                view = filler.get("view_name", ring_config.get("view_name", "layout"))
-                skill_commands.append(f'dbCreateParamInstByMasterName(cv "{lib}" "{device}" "{view}" "{name}" list({x} {y}) "{orientation}")')
-            # Skip blank types - they are for visualization only
+    for filler in filler_components:
+        position = filler.get("position", [0, 0])
+        orientation = filler.get("orientation", "R0")
+        device = filler.get("device", "PFILLER10")
+        name = str(filler.get("name", "")).strip()
+        position_str = filler.get("position_str")
+        if not isinstance(position_str, str) or not position_str:
+            pos_field = filler.get("position")
+            position_str = pos_field if isinstance(pos_field, str) and pos_field else "abs"
+        skill_inst_name = f"{name}_{position_str}" if name else f"filler_{position_str}"
+        x, y = position
+        lib = ring_config.get("library_name", generator.config.get("library_name", "tpd018bcdnv5"))
+        view = filler.get("view_name", ring_config.get("view_name", "layout"))
+        skill_commands.append(f'dbCreateParamInstByMasterName(cv "{lib}" "{device}" "{view}" "{skill_inst_name}" list({x} {y}) "{orientation}")')
   
     skill_commands.append("")
     
@@ -434,4 +559,29 @@ def generate_layout_from_json(json_file: str, output_file: str = "generated_layo
     print(f"✅ Layout Skill script generated: {output_file}")
     
     return output_file
+
+
+def generate_layout_from_json(json_file: str, output_file: str = "generated_layout.il"):
+    """Generate 180nm layout from JSON by consuming confirmed config and then generating SKILL."""
+
+    confirmed_json_path = json_file
+    with open(confirmed_json_path, 'r', encoding='utf-8') as f:
+        confirmed_config = json.load(f)
+
+    ring_config = confirmed_config.get("ring_config", {})
+    instances = confirmed_config.get("instances", [])
+
+    generator = LayoutGeneratorT180()
+    generator.set_config(ring_config)
+
+    inner_pads = [inst for inst in instances if isinstance(inst, dict) and inst.get("type") == "inner_pad"]
+    all_components_with_fillers = [inst for inst in instances if isinstance(inst, dict) and inst.get("type") != "inner_pad"]
+
+    return generate_layout_skill_from_components(
+        generator=generator,
+        ring_config=ring_config,
+        all_components_with_fillers=all_components_with_fillers,
+        inner_pads=inner_pads,
+        output_file=output_file,
+    )
 

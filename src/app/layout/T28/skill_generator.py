@@ -9,7 +9,6 @@ from ..device_classifier import DeviceClassifier
 from ..voltage_domain import VoltageDomainHandler
 from .inner_pad_handler import InnerPadHandler
 from ..position_calculator import PositionCalculator
-from .auto_filler import get_corner_domain
 from ..process_node_config import get_process_node_config
 
 class SkillGeneratorT28:

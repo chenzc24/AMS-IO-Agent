@@ -107,6 +107,12 @@ except ImportError as e:
     logger.error(f"❌ Failed to import agent components: {e}")
     sys.exit(1)
 
+from src.app.layout.editor_confirm_merge import (
+    build_confirmed_payload,
+    normalize_editor_payload_for_confirm,
+    resolve_source_intent_path,
+)
+
 # ==========================================
 # Initialize FastAPI
 # ==========================================
@@ -209,6 +215,11 @@ class AgentChatRequest(BaseModel):
     stream: bool = True
     reset_memory: bool = False
     files: List[str] = []  # List of file paths or contents if needed
+
+
+class EditorConfirmRequest(BaseModel):
+    source_path: str
+    data: Any
 
 # ==========================================
 # Helpers
@@ -325,6 +336,62 @@ async def submit_input(submission: InputSubmission):
     else:
         logger.warning("Received input submission but agent was not waiting.")
         raise HTTPException(status_code=400, detail="Agent is not waiting for input.")
+
+
+@app.post("/api/agent/editor/confirm")
+async def confirm_editor_layout(request: EditorConfirmRequest):
+    """Persist IO editor data and trigger backend wait-loop continuation."""
+    try:
+        raw_path = (request.source_path or "").strip()
+        if not raw_path:
+            raise HTTPException(status_code=400, detail="source_path is required")
+
+        normalized_path = raw_path.lstrip("/")
+        if normalized_path.startswith("output/"):
+            target_path = (project_root / normalized_path).resolve()
+        elif normalized_path.startswith("turn_"):
+            target_path = (Path(OUTPUT_DIR) / normalized_path).resolve()
+        else:
+            target_path = (Path(OUTPUT_DIR) / normalized_path).resolve()
+
+        output_root = Path(OUTPUT_DIR).resolve()
+        if not str(target_path).startswith(str(output_root)):
+            raise HTTPException(status_code=400, detail="source_path must be inside output/")
+
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+
+        source_intent_path = resolve_source_intent_path(target_path)
+        source_payload = None
+        if source_intent_path and source_intent_path.exists():
+            with open(source_intent_path, "r", encoding="utf-8") as f:
+                source_payload = json.load(f)
+
+        normalized_payload = normalize_editor_payload_for_confirm(request.data)
+        confirmed_payload = build_confirmed_payload(source_payload or {}, normalized_payload)
+
+        with open(target_path, "w", encoding="utf-8") as f:
+            json.dump(confirmed_payload, f, ensure_ascii=False, indent=2)
+
+        written_paths = [str(target_path.relative_to(project_root))]
+
+        # T28 compatibility: also emit *_confirmed.json (T180 still uses intermediate file mtime).
+        if target_path.name.endswith("_intermediate_editor.json"):
+            confirmed_path = target_path.with_name(
+                target_path.name.replace("_intermediate_editor.json", "_confirmed.json")
+            )
+            with open(confirmed_path, "w", encoding="utf-8") as f:
+                json.dump(confirmed_payload, f, ensure_ascii=False, indent=2)
+            written_paths.append(str(confirmed_path.relative_to(project_root)))
+
+        return {
+            "ok": True,
+            "written": written_paths,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to persist editor confirmation: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/anthropic/v1/complete")
 async def complete(request: AnthropicCompletionRequest):

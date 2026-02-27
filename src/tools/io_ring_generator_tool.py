@@ -11,14 +11,97 @@ from src.app.intent_graph.json_validator import validate_config, convert_config_
 from src.app.layout.layout_generator_factory import generate_layout_from_json, create_layout_generator
 from src.app.layout.T28.layout_visualizer import visualize_layout, visualize_layout_from_components
 from src.app.layout.T180.layout_visualizer import visualize_layout_T180
+from src.app.layout.T180.confirmed_config_builder import build_confirmed_config_from_io_config
 from src.app.layout.device_classifier import DeviceClassifier, _normalize_process_node
 from src.app.layout.process_node_config import get_process_node_config, get_template_file_paths, list_supported_process_nodes
+
+
+def _normalize_supported_process_node(process_node: str) -> str:
+    try:
+        normalized = _normalize_process_node(process_node)
+    except ValueError as e:
+        raise ValueError(str(e))
+
+    supported_nodes = list_supported_process_nodes()
+    if normalized not in supported_nodes:
+        raise ValueError(f"Unsupported process node '{normalized}'. Supported nodes: {', '.join(supported_nodes)}")
+    return normalized
+
+
+def _resolve_confirmed_config_path(config_path: Path, process_node: str, consume_confirmed_only: bool) -> Path:
+    if not consume_confirmed_only:
+        return config_path
+
+    if config_path.name.endswith("_confirmed.json"):
+        return config_path
+
+    expected_confirmed = config_path.with_name(f"{config_path.stem}_confirmed.json")
+    if expected_confirmed.exists():
+        return expected_confirmed
+
+    if process_node == "T180":
+        generated_confirmed = Path(build_confirmed_config_from_io_config(str(config_path)))
+        if generated_confirmed.exists():
+            return generated_confirmed
+
+    raise ValueError(
+        "Editor-confirmed config required. "
+        f"Expected: {expected_confirmed}. "
+        "Please run build_io_ring_confirmed_config first."
+    )
+
+@tool
+def build_io_ring_confirmed_config(
+    config_file_path: str,
+    confirmed_output_path: Optional[str] = None,
+    process_node: str = "T180"
+) -> str:
+    """Build confirmed IO config from initial io_config (filler + IO editor confirmation only).
+
+    Args:
+        config_file_path: Path to the initial intent-graph JSON file.
+        confirmed_output_path: Optional output path for the confirmed JSON file.
+        process_node: Process node selector (currently supports "T180" only).
+
+    Returns:
+        String description of confirmation result and generated file path.
+
+    Note:
+        This tool is independent from layout/schematic SKILL generation.
+    """
+    try:
+        config_path = Path(config_file_path)
+        if not config_path.exists():
+            return f"❌ Error: Intent graph file {config_path} does not exist"
+        if config_path.suffix.lower() != '.json':
+            return f"❌ Error: File {config_path} is not a valid JSON file"
+
+        try:
+            process_node = _normalize_process_node(process_node)
+        except ValueError as e:
+            return f"❌ Error: {e}"
+
+        if process_node != "T180":
+            return "❌ Error: build_io_ring_confirmed_config currently supports T180 only"
+
+        confirmed_path = build_confirmed_config_from_io_config(
+            source_json_path=str(config_path),
+            confirmed_output_path=confirmed_output_path,
+        )
+
+        return (
+            f"✅ Confirmed IO config generated successfully: {confirmed_path}\n"
+            "💡 This file is ready for downstream layout/schematic generation."
+        )
+    except Exception as e:
+        return f"❌ Error occurred while building confirmed IO config: {e}"
 
 @tool
 def generate_io_ring_schematic(
     config_file_path: str, 
     output_file_path: Optional[str] = None,
-    process_node: str = "T28"
+    process_node: str = "T28",
+    consume_confirmed_only: bool = True,
     ) -> str:
     """
     Generate IO ring schematic SKILL code from intent graph file
@@ -27,6 +110,7 @@ def generate_io_ring_schematic(
         config_file_path: Path to intent graph file (REQUIRED - use absolute path for better file management)
         output_file_path: Complete path for output file (STRONGLY RECOMMENDED - specify explicit path for better file organization. If not provided, defaults to output directory based on config filename)
         process_node: Process node to use ("T28" or "T180", default: "T28")
+        consume_confirmed_only: If True, require and consume editor-confirmed JSON (or auto-resolve/build it for T180); if False, allow direct consumption of the provided JSON.
         
     Returns:
         String description of generation result, including file path and statistics
@@ -44,15 +128,18 @@ def generate_io_ring_schematic(
     try:
         # Check if intent graph file exists
         config_path = Path(config_file_path)
+        if not config_path.exists():
+            return f"❌ Error: Intent graph file {config_path} does not exist"
+
+        try:
+            process_node = _normalize_supported_process_node(process_node)
+            config_path = _resolve_confirmed_config_path(config_path, process_node, consume_confirmed_only)
+        except ValueError as e:
+            return f"❌ Error: {e}"
         
         # Check file extension
         if config_path.suffix.lower() != '.json':
             return f"❌ Error: File {config_path} is not a valid JSON file"
-        
-        # Validate process node
-        supported_nodes = list_supported_process_nodes()
-        if process_node not in supported_nodes:
-            return f"❌ Error: Unsupported process node '{process_node}'. Supported nodes: {', '.join(supported_nodes)}"
         
         # Get process node configuration
         node_config = get_process_node_config(process_node)
@@ -146,7 +233,7 @@ def generate_io_ring_schematic(
         
         # Normalize process node parameter
         try:
-            process_node = _normalize_process_node(process_node)
+            process_node = _normalize_supported_process_node(process_node)
         except ValueError as e:
             return f"❌ Error: {e}"
         
@@ -188,7 +275,8 @@ def generate_io_ring_schematic(
 def generate_io_ring_layout(
     config_file_path: str, 
     output_file_path: Optional[str] = None,
-    process_node: str = "T28"
+    process_node: str = "T28",
+    consume_confirmed_only: bool = True,
 ) -> str:
     """
     Generate IO ring layout SKILL code from intent graph file
@@ -197,6 +285,7 @@ def generate_io_ring_layout(
         config_file_path: Path to intent graph file (REQUIRED - use absolute path for better file management)
         output_file_path: Complete path for output file (STRONGLY RECOMMENDED - specify explicit path for better file organization. If not provided, defaults to output directory based on config filename)
         process_node: Process node to use ("T28" or "T180", default: "T28")
+        consume_confirmed_only: If True, require and consume editor-confirmed JSON (or auto-resolve/build it for T180); if False, allow direct consumption of the provided JSON.
         
     Returns:
         String description of generation result, including file path and statistics
@@ -215,7 +304,13 @@ def generate_io_ring_layout(
         # Check if intent graph file exists
         config_path = Path(config_file_path)
         if not config_path.exists():
-            return f"❌ Error: Intent graph file {config_file_path} does not exist"
+            return f"❌ Error: Intent graph file {config_path} does not exist"
+
+        try:
+            process_node = _normalize_supported_process_node(process_node)
+            config_path = _resolve_confirmed_config_path(config_path, process_node, consume_confirmed_only)
+        except ValueError as e:
+            return f"❌ Error: {e}"
         
         # Check file extension
         if config_path.suffix.lower() != '.json':
@@ -245,11 +340,6 @@ def generate_io_ring_layout(
             if output_path.suffix.lower() != '.il':
                 output_path = output_path.with_suffix('.il')
         
-        # Validate process node
-        supported_nodes = list_supported_process_nodes()
-        if process_node not in supported_nodes:
-            return f"❌ Error: Unsupported process node '{process_node}'. Supported nodes: {', '.join(supported_nodes)}"
-        
         # Generate layout with process node configuration
         # Library name, cell name, and view name are read from config or use defaults
         try:
@@ -278,6 +368,74 @@ def generate_io_ring_layout(
             return f"❌ Failed to generate layout: {e}"
     except Exception as e:
         return f"❌ Error occurred while generating IO ring layout: {e}"
+
+
+@tool
+def generate_io_ring_confirmed_artifacts(
+    config_file_path: str,
+    output_dir: Optional[str] = None,
+    process_node: str = "T180",
+) -> str:
+    """Fixed-order orchestrator: confirmed config -> layout -> schematic.
+    
+    Args:
+        config_file_path: Path to the initial intent-graph JSON file.
+        output_dir: Optional output directory for the generated artifacts.
+        process_node: Process node selector (currently supports "T180" only).
+        
+    Returns:
+        String description of generation result.
+    """
+    try:
+        source_path = Path(config_file_path)
+        if not source_path.exists():
+            return f"❌ Error: Intent graph file {source_path} does not exist"
+        if source_path.suffix.lower() != ".json":
+            return f"❌ Error: File {source_path} is not a valid JSON file"
+
+        try:
+            process_node = _normalize_supported_process_node(process_node)
+        except ValueError as e:
+            return f"❌ Error: {e}"
+
+        out_dir = Path(output_dir) if output_dir else source_path.parent
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        confirmed_path = out_dir / f"{source_path.stem}_confirmed.json"
+        layout_path = out_dir / f"{source_path.stem}_layout.il"
+        schematic_path = out_dir / f"{source_path.stem}_schematic.il"
+
+        confirmed_built = build_confirmed_config_from_io_config(
+            source_json_path=str(source_path),
+            confirmed_output_path=str(confirmed_path),
+        )
+
+        layout_result = generate_io_ring_layout(
+            config_file_path=str(confirmed_path),
+            output_file_path=str(layout_path),
+            process_node=process_node,
+            consume_confirmed_only=True,
+        )
+        if layout_result.startswith("❌"):
+            return f"❌ Orchestration failed at layout step:\n{layout_result}"
+
+        schematic_result = generate_io_ring_schematic(
+            config_file_path=str(confirmed_path),
+            output_file_path=str(schematic_path),
+            process_node=process_node,
+            consume_confirmed_only=True,
+        )
+        if schematic_result.startswith("❌"):
+            return f"❌ Orchestration failed at schematic step:\n{schematic_result}"
+
+        return (
+            "✅ Fixed-order orchestration completed successfully.\n"
+            f"1) Confirmed config: {confirmed_built}\n"
+            f"2) Layout: {layout_path}\n"
+            f"3) Schematic: {schematic_path}"
+        )
+    except Exception as e:
+        return f"❌ Error occurred during fixed-order orchestration: {e}"
 
 @tool
 def list_intent_graphs(directory: str = "output") -> str:

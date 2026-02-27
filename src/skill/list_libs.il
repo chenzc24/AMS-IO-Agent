@@ -1,6 +1,5 @@
 
 libs = ddGetObj()
-while( libs
-    println(libs~>name)
-    libs = libs~>next
+foreach(lib libs
+    printf("%s\n" lib~>name)
 )

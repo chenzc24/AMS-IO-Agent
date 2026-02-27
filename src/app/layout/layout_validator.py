@@ -34,23 +34,25 @@ class LayoutValidator:
                 orientation = component.get("orientation", "R0")
                 sides[orientation].append(component)
         
-        # Validate that left and right sides have the same count (height)
+        # Collect side counts
         left_count = len(sides["R270"])
         right_count = len(sides["R90"])
-        if left_count != right_count:
-            return {
-                "valid": False, 
-                "message": f"Left and right side counts don't match: left {left_count}, right {right_count}"
-            }
-        
-        # Validate that top and bottom sides have the same count (width)
         top_count = len(sides["R180"])
         bottom_count = len(sides["R0"])
-        if top_count != bottom_count:
-            return {
-                "valid": False, 
-                "message": f"Top and bottom side counts don't match: top {top_count}, bottom {bottom_count}"
-            }
+
+        # For legacy T28, keep opposite-side parity checks.
+        # T180 allows asymmetric side counts and should not be blocked here.
+        if process_node != "T180":
+            if left_count != right_count:
+                return {
+                    "valid": False,
+                    "message": f"Left and right side counts don't match: left {left_count}, right {right_count}"
+                }
+            if top_count != bottom_count:
+                return {
+                    "valid": False,
+                    "message": f"Top and bottom side counts don't match: top {top_count}, bottom {bottom_count}"
+                }
         
         # Validate that each direction has at least one component
         for orientation, components in sides.items():

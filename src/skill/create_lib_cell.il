@@ -1,18 +1,14 @@
 
-;; Create library and cellview if not exists
-procedure(create_lib_cell(libName cellName viewName)
-    let((cv)
-        unless( ddGetObj(libName)
-            ddCreateLib(libName nil nil "ams")
+;; Create library and cellview if not exist
+procedure(createLibCell(libName cellName viewName)
+    let((libId cellId)
+        libId = ddGetObj(libName)
+        when(!libId
+            libId = dbCreateLib(libName)
+            printf("Created library %s\n" libName)
         )
-        cv = dbOpenCellViewByType(libName cellName viewName "maskLayout" "w")
-        if( cv then
-            hiSetCurrentWindow(cv~>window)
-            println("Created and opened cellview " libName "/" cellName "/" viewName)
-            return(t)
-        else
-            println("Failed to open cellview")
-            return(nil)
-        )
+        cellId = dbOpenCellViewByType(libName cellName viewName "maskLayout" "w")
+        printf("Opened cellview %s/%s/%s\n" libName cellName viewName)
+        t
     )
 )

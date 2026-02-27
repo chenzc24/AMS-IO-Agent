@@ -69,32 +69,6 @@ class SchematicGenerator:
         # 180nm does not require device offset
         return 0.0
     
-    def get_device_suffix_and_orientation(self, position_desc: str) -> tuple[str, str]:
-        """Automatically infer device suffix and orientation based on position description"""
-        if not isinstance(position_desc, str) or '_' not in position_desc:
-            # If not a relative position description, return default values
-            return '_H_G', 'R0'
-        
-        parts = position_desc.split('_')
-        if len(parts) >= 2:
-            # Take the first part as side
-            side = parts[0]
-        else:
-            # If not a relative position description, return default values
-            return '_H_G', 'R0'
-        
-        # Determine suffix and orientation based on side
-        if side in ['left', 'right']:
-            # Left and right sides use vertical devices
-            suffix = '_V_G'
-            orientation = 'R270' if side == 'left' else 'R90'
-        else:  # top, bottom
-            # Top and bottom sides use horizontal devices
-            suffix = '_H_G'
-            orientation = 'R180' if side == 'top' else 'R0'
-        
-        return suffix, orientation
-    
     def get_outer_pad_positions(self, instances: list, ring_config: dict) -> list:
         """Get outer ring pad position information for inner ring pad position calculation"""
         outer_pads = []
@@ -131,6 +105,12 @@ class SchematicGenerator:
         # Handle direction field, compatible with io_direction
         if 'io_direction' in config and 'direction' not in config:
             config['direction'] = config['io_direction']
+        # Handle legacy io_type field (input/output)
+        if 'io_type' in config and 'direction' not in config:
+            config['direction'] = config['io_type']
+        # Normalize direction value to lowercase for robust matching
+        if 'direction' in config and isinstance(config['direction'], str):
+            config['direction'] = config['direction'].strip().lower()
         
         # Handle inner ring pad identification
         if config.get('type') == 'inner_pad':
@@ -425,10 +405,10 @@ class SchematicGenerator:
     def get_noconn_orientation(self, device_orientation):
         """Get corresponding orientation for noConn component"""
         orientation_map = {
-            'R0': 'R180',
-            'R90': 'R270', 
-            'R180': 'R0',
-            'R270': 'R90'
+            'R0': 'R270',
+            'R90': 'R0', 
+            'R180': 'R90',
+            'R270': 'R180'
         }
         return orientation_map.get(device_orientation, 'R0')
     
@@ -591,7 +571,7 @@ class SchematicGenerator:
                     continue
                 
                 # Check if it's a digital IO device and label is noConn
-                if (device in ['PDDW16SDGZ_H_G', 'PDDW16SDGZ_V_G'] and 
+                if (device in ['PDDW0412SCDG'] and 
                     label == 'noConn'):
                     # Create noConn component
                     if not noConn_loaded:
@@ -614,9 +594,7 @@ class SchematicGenerator:
                                                          create_wire=True, create_label=False, create_pin=False)
                     commands.extend(pin_cmds)
                     # Place noConn component at wire end
-                    # instance_name is already sanitized, pin['name'] should be safe (standard pin names)
-                    noConn_name = f"noConn_{instance_name}_{pin['name']}"
-                    commands.append(f'dbCreateInst(cv noConnMaster "{noConn_name}" ' +
+                    commands.append(f'dbCreateInst(cv noConnMaster "noConn_{instance_name}_{pin["name"]}" ' +
                                      f'\'({end_x:.3f} {end_y:.3f}) "{noConn_orientation}")')
                     continue  # Skip normal pin generation
                 
