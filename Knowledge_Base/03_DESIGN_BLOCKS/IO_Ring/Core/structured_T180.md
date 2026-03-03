@@ -164,10 +164,10 @@ If the user does **NOT** explicitly specify the type, check this dictionary. If 
 | Signal Category | Condition | Device | Naming Convention Examples |
 | :--- | :--- | :--- | :--- |
 | **Analog IO** | **Priority 1**: User explicitly says "Analog IO".<br>**Priority 2**: Name in Mandatory Dictionary. | `PVDD1ANA` (if "V" in name)<br>`PVSS1ANA` (if "G" in name) | **See Section 5.1.1: Mandatory Signal Classification Dictionary (Analog IO list).** |
-| **Analog Power** | Regular Power (Name != VIOH* AND User does NOT say "voltage domain") | `PVDD1CDG` | VIOLA, VDIB etc. |
-| **Analog Ground** | Regular Ground (Name != GIOH* AND User does NOT say "voltage domain") | `PVSS1CDG` | GIOLA, GDIB etc. |
 | **Analog VD Power** | **Priority 1**: User says "Voltage Domain".<br>**Priority 2**: Name matches `VIOHA`/`VDID`. | `PVDD2CDG` | VIOHA, VDID etc. |
 | **Analog VD Ground** | **Priority 1**: User says "Voltage Domain".<br>**Priority 2**: Name matches `GIOHA`/`GDID`. | `PVSS2CDG` | GIOHA, GDID etc. |
+| **Analog Power** | Analog Domain Consumer (Regular) | `PVDD1CDG` | VIOLA, VDIB etc. |
+| **Analog Ground** | Analog Domain Consumer (Regular) | `PVSS1CDG` | GIOLA, GDIB etc. |
 
 #### Digital Domain Devices
 

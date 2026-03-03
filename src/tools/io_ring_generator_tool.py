@@ -1,8 +1,10 @@
 from pathlib import Path
 from typing import Optional, Dict, Any
+import io
 import os
 import sys
 import json
+from contextlib import redirect_stdout
 from smolagents import tool
 
 from src.app.schematic.schematic_generator_T28 import generate_multi_device_schematic as generate_multi_device_schematic_28nm
@@ -14,6 +16,36 @@ from src.app.layout.T180.layout_visualizer import visualize_layout_T180
 from src.app.layout.T180.confirmed_config_builder import build_confirmed_config_from_io_config
 from src.app.layout.device_classifier import DeviceClassifier, _normalize_process_node
 from src.app.layout.process_node_config import get_process_node_config, get_template_file_paths, list_supported_process_nodes
+
+
+def _emit_tool_output(
+    tool_name: str,
+    result_text: str,
+    *,
+    summary: Optional[str] = None,
+    event_type: str = "tool_result",
+    extra: Optional[Dict[str, Any]] = None,
+) -> str:
+    return result_text
+
+
+def _format_exception(error: Exception) -> str:
+    message = f"{type(error).__name__}: {error}"
+    causes = []
+    current = error.__cause__ or error.__context__
+    while current and len(causes) < 3:
+        causes.append(f"{type(current).__name__}: {current}")
+        current = current.__cause__ or current.__context__
+    if causes:
+        message += " | caused by: " + " -> ".join(causes)
+    return message
+
+
+def _validate_with_details(config: Dict[str, Any]) -> tuple[bool, str]:
+    buffer = io.StringIO()
+    with redirect_stdout(buffer):
+        is_valid = bool(validate_config(config))
+    return is_valid, buffer.getvalue().strip()
 
 
 def _normalize_supported_process_node(process_node: str) -> str:
@@ -72,29 +104,29 @@ def build_io_ring_confirmed_config(
     try:
         config_path = Path(config_file_path)
         if not config_path.exists():
-            return f"❌ Error: Intent graph file {config_path} does not exist"
+            return _emit_tool_output("build_io_ring_confirmed_config", f"❌ Error: Intent graph file {config_path} does not exist")
         if config_path.suffix.lower() != '.json':
-            return f"❌ Error: File {config_path} is not a valid JSON file"
+            return _emit_tool_output("build_io_ring_confirmed_config", f"❌ Error: File {config_path} is not a valid JSON file")
 
         try:
             process_node = _normalize_process_node(process_node)
         except ValueError as e:
-            return f"❌ Error: {e}"
+            return _emit_tool_output("build_io_ring_confirmed_config", f"❌ Error: {_format_exception(e)}")
 
         if process_node != "T180":
-            return "❌ Error: build_io_ring_confirmed_config currently supports T180 only"
+            return _emit_tool_output("build_io_ring_confirmed_config", "❌ Error: build_io_ring_confirmed_config currently supports T180 only")
 
         confirmed_path = build_confirmed_config_from_io_config(
             source_json_path=str(config_path),
             confirmed_output_path=confirmed_output_path,
         )
 
-        return (
+        return _emit_tool_output("build_io_ring_confirmed_config", (
             f"✅ Confirmed IO config generated successfully: {confirmed_path}\n"
             "💡 This file is ready for downstream layout/schematic generation."
-        )
+        ))
     except Exception as e:
-        return f"❌ Error occurred while building confirmed IO config: {e}"
+        return _emit_tool_output("build_io_ring_confirmed_config", f"❌ Error occurred while building confirmed IO config: {_format_exception(e)}")
 
 @tool
 def generate_io_ring_schematic(
@@ -129,17 +161,17 @@ def generate_io_ring_schematic(
         # Check if intent graph file exists
         config_path = Path(config_file_path)
         if not config_path.exists():
-            return f"❌ Error: Intent graph file {config_path} does not exist"
+            return _emit_tool_output("generate_io_ring_schematic", f"❌ Error: Intent graph file {config_path} does not exist")
 
         try:
             process_node = _normalize_supported_process_node(process_node)
             config_path = _resolve_confirmed_config_path(config_path, process_node, consume_confirmed_only)
         except ValueError as e:
-            return f"❌ Error: {e}"
+            return _emit_tool_output("generate_io_ring_schematic", f"❌ Error: {_format_exception(e)}")
         
         # Check file extension
         if config_path.suffix.lower() != '.json':
-            return f"❌ Error: File {config_path} is not a valid JSON file"
+            return _emit_tool_output("generate_io_ring_schematic", f"❌ Error: File {config_path} is not a valid JSON file")
         
         # Get process node configuration
         node_config = get_process_node_config(process_node)
@@ -196,9 +228,9 @@ def generate_io_ring_schematic(
             with open(config_path, 'r', encoding='utf-8') as f:
                 config = json.load(f)
         except json.JSONDecodeError as e:
-            return f"❌ Error: JSON format error {e}"
+            return _emit_tool_output("generate_io_ring_schematic", f"❌ Error: JSON format error {_format_exception(e)}")
         except Exception as e:
-            return f"❌ Error: Failed to load intent graph file {e}"
+            return _emit_tool_output("generate_io_ring_schematic", f"❌ Error: Failed to load intent graph file {_format_exception(e)}")
         
         # Convert configuration format
         config_list = convert_config_to_list(config)
@@ -235,7 +267,7 @@ def generate_io_ring_schematic(
         try:
             process_node = _normalize_supported_process_node(process_node)
         except ValueError as e:
-            return f"❌ Error: {e}"
+            return _emit_tool_output("generate_io_ring_schematic", f"❌ Error: {_format_exception(e)}")
         
         # Generate schematic with process node
         # Library name, cell name, and view name are read from config or use defaults
@@ -247,7 +279,7 @@ def generate_io_ring_schematic(
                 generate_multi_device_schematic_180nm(config_list, str(output_path))
             else:
                 supported_nodes = list_supported_process_nodes()
-                return f"❌ Error: Unsupported process node '{process_node}'. Supported nodes: {', '.join(supported_nodes)}"
+                return _emit_tool_output("generate_io_ring_schematic", f"❌ Error: Unsupported process node '{process_node}'. Supported nodes: {', '.join(supported_nodes)}")
             
             # Get statistics from config_list (filter out ring_config items)
             device_instances = [item for item in config_list if isinstance(item, dict) and 'device' in item]
@@ -263,13 +295,13 @@ def generate_io_ring_schematic(
             if device_types:
                 result += f"  - Device types used: {', '.join(sorted(device_types))}\n"
             
-            return result
+            return _emit_tool_output("generate_io_ring_schematic", result)
             
         except Exception as e:
-            return f"❌ Failed to generate schematic: {e}"
+            return _emit_tool_output("generate_io_ring_schematic", f"❌ Failed to generate schematic: {_format_exception(e)}")
             
     except Exception as e:
-        return f"❌ Error occurred while generating IO ring schematic: {e}"
+        return _emit_tool_output("generate_io_ring_schematic", f"❌ Error occurred while generating IO ring schematic: {_format_exception(e)}")
 
 @tool
 def generate_io_ring_layout(
@@ -304,26 +336,26 @@ def generate_io_ring_layout(
         # Check if intent graph file exists
         config_path = Path(config_file_path)
         if not config_path.exists():
-            return f"❌ Error: Intent graph file {config_path} does not exist"
+            return _emit_tool_output("generate_io_ring_layout", f"❌ Error: Intent graph file {config_path} does not exist")
 
         try:
             process_node = _normalize_supported_process_node(process_node)
             config_path = _resolve_confirmed_config_path(config_path, process_node, consume_confirmed_only)
         except ValueError as e:
-            return f"❌ Error: {e}"
+            return _emit_tool_output("generate_io_ring_layout", f"❌ Error: {_format_exception(e)}")
         
         # Check file extension
         if config_path.suffix.lower() != '.json':
-            return f"❌ Error: File {config_path} is not a valid JSON file"
+            return _emit_tool_output("generate_io_ring_layout", f"❌ Error: File {config_path} is not a valid JSON file")
         
         # Load configuration
         try:
             with open(config_path, 'r', encoding='utf-8') as f:
                 config = json.load(f)
         except json.JSONDecodeError as e:
-            return f"❌ Error: JSON format error {e}"
+            return _emit_tool_output("generate_io_ring_layout", f"❌ Error: JSON format error {_format_exception(e)}")
         except Exception as e:
-            return f"❌ Error: Failed to load intent graph file {e}"
+            return _emit_tool_output("generate_io_ring_layout", f"❌ Error: Failed to load intent graph file {_format_exception(e)}")
         
         # Process output file path
         if output_file_path is None:
@@ -359,15 +391,15 @@ def generate_io_ring_layout(
             
             # Return success message with visualization info if generated
             if vis_output_path and vis_output_path.exists():
-                return f"✅ Successfully generated layout file: {output_path}\n" \
+                return _emit_tool_output("generate_io_ring_layout", f"✅ Successfully generated layout file: {output_path}\n" \
                        f"📊 Layout visualization generated: {vis_output_path}\n" \
-                       f"💡 Tip: Review the visualization image to verify the layout arrangement."
+                       f"💡 Tip: Review the visualization image to verify the layout arrangement.")
             else:
-                return f"✅ Successfully generated layout file: {output_path}"
+                return _emit_tool_output("generate_io_ring_layout", f"✅ Successfully generated layout file: {output_path}")
         except Exception as e:
-            return f"❌ Failed to generate layout: {e}"
+            return _emit_tool_output("generate_io_ring_layout", f"❌ Failed to generate layout: {_format_exception(e)}")
     except Exception as e:
-        return f"❌ Error occurred while generating IO ring layout: {e}"
+        return _emit_tool_output("generate_io_ring_layout", f"❌ Error occurred while generating IO ring layout: {_format_exception(e)}")
 
 
 @tool
@@ -389,14 +421,14 @@ def generate_io_ring_confirmed_artifacts(
     try:
         source_path = Path(config_file_path)
         if not source_path.exists():
-            return f"❌ Error: Intent graph file {source_path} does not exist"
+            return _emit_tool_output("generate_io_ring_confirmed_artifacts", f"❌ Error: Intent graph file {source_path} does not exist")
         if source_path.suffix.lower() != ".json":
-            return f"❌ Error: File {source_path} is not a valid JSON file"
+            return _emit_tool_output("generate_io_ring_confirmed_artifacts", f"❌ Error: File {source_path} is not a valid JSON file")
 
         try:
             process_node = _normalize_supported_process_node(process_node)
         except ValueError as e:
-            return f"❌ Error: {e}"
+            return _emit_tool_output("generate_io_ring_confirmed_artifacts", f"❌ Error: {_format_exception(e)}")
 
         out_dir = Path(output_dir) if output_dir else source_path.parent
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -417,7 +449,7 @@ def generate_io_ring_confirmed_artifacts(
             consume_confirmed_only=True,
         )
         if layout_result.startswith("❌"):
-            return f"❌ Orchestration failed at layout step:\n{layout_result}"
+            return _emit_tool_output("generate_io_ring_confirmed_artifacts", f"❌ Orchestration failed at layout step:\n{layout_result}")
 
         schematic_result = generate_io_ring_schematic(
             config_file_path=str(confirmed_path),
@@ -426,16 +458,16 @@ def generate_io_ring_confirmed_artifacts(
             consume_confirmed_only=True,
         )
         if schematic_result.startswith("❌"):
-            return f"❌ Orchestration failed at schematic step:\n{schematic_result}"
+            return _emit_tool_output("generate_io_ring_confirmed_artifacts", f"❌ Orchestration failed at schematic step:\n{schematic_result}")
 
-        return (
+        return _emit_tool_output("generate_io_ring_confirmed_artifacts", (
             "✅ Fixed-order orchestration completed successfully.\n"
             f"1) Confirmed config: {confirmed_built}\n"
             f"2) Layout: {layout_path}\n"
             f"3) Schematic: {schematic_path}"
-        )
+        ))
     except Exception as e:
-        return f"❌ Error occurred during fixed-order orchestration: {e}"
+        return _emit_tool_output("generate_io_ring_confirmed_artifacts", f"❌ Error occurred during fixed-order orchestration: {_format_exception(e)}")
 
 @tool
 def list_intent_graphs(directory: str = "output") -> str:
@@ -462,13 +494,13 @@ def list_intent_graphs(directory: str = "output") -> str:
                     dir_path = alt_path
                     break
             else:
-                return f"❌ Error: Directory {directory} does not exist. Tried: {directory}, output/generated, src/schematic, output"
+                return _emit_tool_output("list_intent_graphs", f"❌ Error: Directory {directory} does not exist. Tried: {directory}, output/generated, src/schematic, output")
         
         # Collect all JSON files
         json_files = list(dir_path.glob("*.json"))
         
         if not json_files:
-            return f"No JSON files found in directory {directory}"
+            return _emit_tool_output("list_intent_graphs", f"No JSON files found in directory {directory}")
         
         # Filter files that might be intent graphs
         intent_graphs = []
@@ -488,16 +520,16 @@ def list_intent_graphs(directory: str = "output") -> str:
                 continue
         
         if not intent_graphs:
-            return f"No valid intent graph files found in directory {directory}"
+            return _emit_tool_output("list_intent_graphs", f"No valid intent graph files found in directory {directory}")
         
         result = f"Found the following intent graph files in directory {directory}:\n"
         for config in intent_graphs:
             result += f"  - {config['file']}: {config['size']} scale, {config['pads']} pads\n"
         
-        return result
+        return _emit_tool_output("list_intent_graphs", result)
         
     except Exception as e:
-        return f"❌ Error occurred while listing intent graph files: {e}"
+        return _emit_tool_output("list_intent_graphs", f"❌ Error occurred while listing intent graph files: {_format_exception(e)}")
 
 @tool
 def visualize_io_ring_layout(il_file_path: str, output_file_path: Optional[str] = None) -> str:
@@ -517,10 +549,10 @@ def visualize_io_ring_layout(il_file_path: str, output_file_path: Optional[str] 
     try:
         il_path = Path(il_file_path)
         if not il_path.exists():
-            return f"❌ Error: Layout file {il_file_path} does not exist"
+            return _emit_tool_output("visualize_io_ring_layout", f"❌ Error: Layout file {il_file_path} does not exist")
         
         if il_path.suffix.lower() != '.il':
-            return f"❌ Error: File {il_file_path} is not a valid SKILL layout file (.il)"
+            return _emit_tool_output("visualize_io_ring_layout", f"❌ Error: File {il_file_path} is not a valid SKILL layout file (.il)")
         
         # Process output file path
         if output_file_path is None:
@@ -549,16 +581,16 @@ def visualize_io_ring_layout(il_file_path: str, output_file_path: Optional[str] 
                 result_path = visualize_layout_T180(str(il_path), str(output_path))
             else:
                 result_path = visualize_layout(str(il_path), str(output_path))
-            return f"✅ Visualization generated successfully!\n📁 Output file: {result_path}\n\n" \
+            return _emit_tool_output("visualize_io_ring_layout", f"✅ Visualization generated successfully!\n📁 Output file: {result_path}\n\n" \
                    f"The visualization shows the IO ring layout with:\n" \
                    f"  - Colored rectangles representing different device types\n" \
                    f"  - Device names labeled in the center of each rectangle\n" \
-                   f"  - Rectangles arranged in a ring formation"
+                   f"  - Rectangles arranged in a ring formation")
         except Exception as e:
-            return f"❌ Failed to generate visualization: {e}"
+            return _emit_tool_output("visualize_io_ring_layout", f"❌ Failed to generate visualization: {_format_exception(e)}")
             
     except Exception as e:
-        return f"❌ Error occurred while visualizing layout: {e}"
+        return _emit_tool_output("visualize_io_ring_layout", f"❌ Error occurred while visualizing layout: {_format_exception(e)}")
 
 @tool
 def visualize_io_ring_from_json(config_file_path: str, output_file_path: Optional[str] = None) -> str:
@@ -580,24 +612,28 @@ def visualize_io_ring_from_json(config_file_path: str, output_file_path: Optiona
         # Check if intent graph file exists
         config_path = Path(config_file_path)
         if not config_path.exists():
-            return f"❌ Error: Intent graph file {config_file_path} does not exist"
+            return _emit_tool_output("visualize_io_ring_from_json", f"❌ Error: Intent graph file {config_file_path} does not exist")
         
         # Check file extension
         if config_path.suffix.lower() != '.json':
-            return f"❌ Error: File {config_path} is not a valid JSON file"
+            return _emit_tool_output("visualize_io_ring_from_json", f"❌ Error: File {config_path} is not a valid JSON file")
         
         # Load configuration
         try:
             with open(config_path, 'r', encoding='utf-8') as f:
                 config = json.load(f)
         except json.JSONDecodeError as e:
-            return f"❌ Error: JSON format error {e}"
+            return _emit_tool_output("visualize_io_ring_from_json", f"❌ Error: JSON format error {_format_exception(e)}")
         except Exception as e:
-            return f"❌ Error: Failed to load intent graph file {e}"
+            return _emit_tool_output("visualize_io_ring_from_json", f"❌ Error: Failed to load intent graph file {_format_exception(e)}")
         
         # Validate intent graph
-        if not validate_config(config):
-            return "❌ Error: Intent graph validation failed"
+        is_valid, validation_details = _validate_with_details(config)
+        if not is_valid:
+            message = "❌ Error: Intent graph validation failed"
+            if validation_details:
+                message += f"\n🔎 Validator detail:\n{validation_details}"
+            return _emit_tool_output("visualize_io_ring_from_json", message)
         
         # Get instances and ring_config
         instances = config.get("instances", [])
@@ -682,16 +718,16 @@ def visualize_io_ring_from_json(config_file_path: str, output_file_path: Optiona
         # Generate visualization directly from components
         try:
             result_path = visualize_layout_from_components(all_components_with_fillers, str(output_path))
-            return f"✅ Visualization generated successfully from JSON!\n📁 Output file: {result_path}\n\n" \
+            return _emit_tool_output("visualize_io_ring_from_json", f"✅ Visualization generated successfully from JSON!\n📁 Output file: {result_path}\n\n" \
                    f"The visualization shows the IO ring layout with:\n" \
                    f"  - Colored rectangles representing different device types\n" \
                    f"  - Device names labeled in the center of each rectangle\n" \
-                   f"  - Rectangles arranged in a ring formation"
+                   f"  - Rectangles arranged in a ring formation")
         except Exception as e:
-            return f"❌ Failed to generate visualization: {e}"
+            return _emit_tool_output("visualize_io_ring_from_json", f"❌ Failed to generate visualization: {_format_exception(e)}")
             
     except Exception as e:
-        return f"❌ Error occurred while visualizing layout from JSON: {e}"
+        return _emit_tool_output("visualize_io_ring_from_json", f"❌ Error occurred while visualizing layout from JSON: {_format_exception(e)}")
 
 @tool
 def validate_intent_graph(config_file_path: str) -> str:
@@ -713,13 +749,17 @@ def validate_intent_graph(config_file_path: str) -> str:
             with open(config_path, 'r', encoding='utf-8') as f:
                 config = json.load(f)
         except json.JSONDecodeError as e:
-            return f"❌ JSON format error: {e}"
+            return _emit_tool_output("validate_intent_graph", f"❌ JSON format error: {_format_exception(e)}")
         except Exception as e:
-            return f"❌ Failed to load intent graph file: {e}"
+            return _emit_tool_output("validate_intent_graph", f"❌ Failed to load intent graph file: {_format_exception(e)}")
         
         # Validate intent graph
-        if not validate_config(config):
-            return "❌ Intent graph validation failed"
+        is_valid, validation_details = _validate_with_details(config)
+        if not is_valid:
+            message = "❌ Intent graph validation failed"
+            if validation_details:
+                message += f"\n🔎 Validator detail:\n{validation_details}"
+            return _emit_tool_output("validate_intent_graph", message)
         
         # Get intent graph statistics
         stats = get_config_statistics(config)
@@ -732,7 +772,7 @@ def validate_intent_graph(config_file_path: str) -> str:
         if stats['digital_ios'] > 0:
             result += f"  - Digital IOs: {stats['digital_ios']} ({stats['input_ios']} inputs, {stats['output_ios']} outputs)\n"
         
-        return result
+        return _emit_tool_output("validate_intent_graph", result)
         
     except Exception as e:
-        return f"❌ Error occurred while validating intent graph file: {e}" 
+        return _emit_tool_output("validate_intent_graph", f"❌ Error occurred while validating intent graph file: {_format_exception(e)}") 

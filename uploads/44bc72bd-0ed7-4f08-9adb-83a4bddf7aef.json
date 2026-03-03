@@ -1,0 +1,216 @@
+{
+  "design_name": "ioeditor_test_with_filler_blank",
+  "technology_node": "T180",
+  "chip_width": 630,
+  "chip_height": 630,
+  "ring_type": "single",
+  "pads_per_side": 8,
+  "voltage_domains": {
+    "core": 1.8,
+    "io": 3.3
+  },
+  "signal_order": "clockwise",
+  "side_order": [
+    "right",
+    "bottom",
+    "left",
+    "top"
+  ],
+  "signals": [
+    {
+      "name": "GIOLA",
+      "side": "right",
+      "position": 0,
+      "type": "signal"
+    },
+    {
+      "name": "FILLER_R0",
+      "side": "right",
+      "position": 1,
+      "type": "filler"
+    },
+    {
+      "name": "BLANK_R0",
+      "side": "right",
+      "position": 2,
+      "type": "blank"
+    },
+    {
+      "name": "MCLK",
+      "side": "right",
+      "position": 3,
+      "type": "signal"
+    },
+    {
+      "name": "VDCKB",
+      "side": "right",
+      "position": 4,
+      "type": "signal"
+    },
+    {
+      "name": "FILLER_R1",
+      "side": "right",
+      "position": 5,
+      "type": "filler"
+    },
+    {
+      "name": "BLANK_R1",
+      "side": "right",
+      "position": 6,
+      "type": "blank"
+    },
+    {
+      "name": "RSTM",
+      "side": "right",
+      "position": 7,
+      "type": "signal"
+    },
+
+    {
+      "name": "DOTM",
+      "side": "bottom",
+      "position": 0,
+      "type": "signal"
+    },
+    {
+      "name": "FILLER_B0",
+      "side": "bottom",
+      "position": 1,
+      "type": "filler"
+    },
+    {
+      "name": "BLANK_B0",
+      "side": "bottom",
+      "position": 2,
+      "type": "blank"
+    },
+    {
+      "name": "DA4",
+      "side": "bottom",
+      "position": 3,
+      "type": "signal"
+    },
+    {
+      "name": "DA3",
+      "side": "bottom",
+      "position": 4,
+      "type": "signal"
+    },
+    {
+      "name": "FILLER_B1",
+      "side": "bottom",
+      "position": 5,
+      "type": "filler"
+    },
+    {
+      "name": "BLANK_B1",
+      "side": "bottom",
+      "position": 6,
+      "type": "blank"
+    },
+    {
+      "name": "DA2",
+      "side": "bottom",
+      "position": 7,
+      "type": "signal"
+    },
+
+    {
+      "name": "DA1",
+      "side": "left",
+      "position": 0,
+      "type": "signal"
+    },
+    {
+      "name": "FILLER_L0",
+      "side": "left",
+      "position": 1,
+      "type": "filler"
+    },
+    {
+      "name": "BLANK_L0",
+      "side": "left",
+      "position": 2,
+      "type": "blank"
+    },
+    {
+      "name": "VIOHD",
+      "side": "left",
+      "position": 3,
+      "type": "signal"
+    },
+    {
+      "name": "VIOLD",
+      "side": "left",
+      "position": 4,
+      "type": "signal"
+    },
+    {
+      "name": "FILLER_L1",
+      "side": "left",
+      "position": 5,
+      "type": "filler"
+    },
+    {
+      "name": "BLANK_L1",
+      "side": "left",
+      "position": 6,
+      "type": "blank"
+    },
+    {
+      "name": "GIOLD",
+      "side": "left",
+      "position": 7,
+      "type": "signal"
+    },
+
+    {
+      "name": "GIOHD",
+      "side": "top",
+      "position": 0,
+      "type": "signal"
+    },
+    {
+      "name": "FILLER_T0",
+      "side": "top",
+      "position": 1,
+      "type": "filler"
+    },
+    {
+      "name": "BLANK_T0",
+      "side": "top",
+      "position": 2,
+      "type": "blank"
+    },
+    {
+      "name": "VIOHA",
+      "side": "top",
+      "position": 3,
+      "type": "signal"
+    },
+    {
+      "name": "GIOHA",
+      "side": "top",
+      "position": 4,
+      "type": "signal"
+    },
+    {
+      "name": "FILLER_T1",
+      "side": "top",
+      "position": 5,
+      "type": "filler"
+    },
+    {
+      "name": "BLANK_T1",
+      "side": "top",
+      "position": 6,
+      "type": "blank"
+    },
+    {
+      "name": "VSSA",
+      "side": "top",
+      "position": 7,
+      "type": "signal"
+    }
+  ]
+}

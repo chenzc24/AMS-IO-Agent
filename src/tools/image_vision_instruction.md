@@ -16,6 +16,7 @@ Please generate a simplified JSON for IO ring based on the image and given rules
 - **Any deviation from these rules is invalid.** If the output does not strictly conform, it must be considered invalid and the tool should retry or report an error.
 
 **The example schema and keys are authoritative; any deviation (missing keys, extra keys, or mismatched types) makes the output unusable.**
+**Missing information should be set to None or Null, not omitted.**
 
 json
 {

@@ -167,7 +167,7 @@ def validate_config(config: Dict[str, Any]) -> bool:
         # Validate type field (if exists)
         if 'type' in instance:
             instance_type = instance['type']
-            valid_types = ['pad', 'inner_pad', 'corner']
+            valid_types = ['filler', 'pad', 'inner_pad', 'corner']
             if instance_type not in valid_types:
                 print(f"❌ Error: instance[{i}] {name}'s type field value is incorrect: got '{instance_type}', expected one of {valid_types}")
                 return False

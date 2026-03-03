@@ -100,6 +100,7 @@ try:
     from src.app.utils.config_utils import load_config_from_yaml, Config, get_model_config
     from src.app.utils.multi_agent_factory import create_master_agent_with_workers
     from src.app.utils.agent_utils import save_agent_memory
+    from src.app.utils.system_prompt_builder import load_system_prompt_with_profile
     from smolagents.memory import ActionStep, FinalAnswerStep
     from smolagents.models import ChatMessageStreamDelta
     logger.info("✅ Agent components imported successfully")
@@ -187,6 +188,13 @@ async def startup_event():
         # Explicitly pass the correct tools_config path from the config object or default
         tools_config_path = getattr(config.tools, 'config_path', "src/tools/tools_config.yaml")
         agent_instance = create_master_agent_with_workers(model_config, tools_config_path=tools_config_path)
+
+        system_prompt = load_system_prompt_with_profile()
+        if system_prompt:
+            agent_instance.instructions = (
+                f"{system_prompt}\n\n{agent_instance.instructions}"
+            )
+
         logger.info("🤖 Agent initialized successfully")
     except Exception as e:
         logger.error(f"❌ Error initializing agent: {e}")

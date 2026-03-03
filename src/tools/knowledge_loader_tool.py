@@ -14,6 +14,24 @@ import json
 from datetime import datetime
 from pathlib import Path
 from smolagents import tool
+from src.tools.tool_output_formatter import wrap_tool_output
+
+
+def _emit_tool_output(
+    tool_name: str,
+    result_text: str,
+    *,
+    summary: str = None,
+    event_type: str = "tool_result",
+    extra: dict = None,
+) -> str:
+    return wrap_tool_output(
+        tool_name,
+        result_text,
+        summary=summary,
+        event_type=event_type,
+        extra=extra,
+    )
 
 # Project root directory
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -167,7 +185,7 @@ def scan_knowledge_base(rescan: bool = False) -> str:
         KNOWLEDGE_INDEX = auto_discover_knowledge()
     
     if not KNOWLEDGE_INDEX:
-        return "❌ No knowledge files found"
+        return _emit_tool_output("scan_knowledge_base", "❌ No knowledge files found")
     
     # Group by category
     by_category = {}
@@ -197,7 +215,7 @@ def scan_knowledge_base(rescan: bool = False) -> str:
     output.append("")
     output.append("💡 Use load_domain_knowledge(domain_name) to load specific knowledge")
     
-    return "\n".join(output)
+    return _emit_tool_output("scan_knowledge_base", "\n".join(output))
 
 @tool
 def load_domain_knowledge(domain: str) -> str:
@@ -236,24 +254,24 @@ def load_domain_knowledge(domain: str) -> str:
         total_count = len(available_keys)
         
         if total_count == 0:
-            return f"""❌ Unknown domain: '{domain}'
+            return _emit_tool_output("load_domain_knowledge", f"""❌ Unknown domain: '{domain}'
 
 💡 Tip: No knowledge domains found. Use refresh_knowledge_index() to re-scan directories.
-"""
+""")
         elif total_count <= sample_size:
-            return f"""❌ Unknown domain: '{domain}'
+            return _emit_tool_output("load_domain_knowledge", f"""❌ Unknown domain: '{domain}'
 
 💡 Tip: Use scan_knowledge_base() to see all available domains
 
 Available domains ({total_count}): {available_sample}
-"""
+""")
         else:
-            return f"""❌ Unknown domain: '{domain}'
+            return _emit_tool_output("load_domain_knowledge", f"""❌ Unknown domain: '{domain}'
 
 💡 Tip: Use scan_knowledge_base() to see all {total_count} available domains
 
 Sample domains: {available_sample}...
-"""
+""")
     
     knowledge = KNOWLEDGE_INDEX[domain]
     filepath = PROJECT_ROOT / knowledge["path"]
@@ -264,7 +282,7 @@ Sample domains: {available_sample}...
         
         size_kb = len(content) / 1024
         
-        return f"""✅ Loaded domain: {domain}
+        return _emit_tool_output("load_domain_knowledge", f"""✅ Loaded domain: {domain}
 
 📄 Description: {knowledge['description']}
 📁 File: {knowledge['path']}
@@ -275,11 +293,19 @@ Sample domains: {available_sample}...
 {'='*60}
 
 ✅ Knowledge loaded successfully. You can now answer based on this knowledge.
-"""
+""", extra={
+            "hide_raw_output_in_main": True,
+            "main_info_lines": [
+                f"Loaded domain: {domain}",
+                f"Description: {knowledge['description']}",
+                f"File: {knowledge['path']}",
+                f"Size: {size_kb:.1f} KB ({len(content)} chars)",
+            ],
+        })
     except FileNotFoundError:
-        return f"❌ Knowledge file not found: {knowledge['path']}"
+        return _emit_tool_output("load_domain_knowledge", f"❌ Knowledge file not found: {knowledge['path']}")
     except Exception as e:
-        return f"❌ Failed to load {domain}: {e}"
+        return _emit_tool_output("load_domain_knowledge", f"❌ Failed to load {domain}: {e}")
 
 @tool
 def refresh_knowledge_index() -> str:
@@ -319,7 +345,7 @@ def refresh_knowledge_index() -> str:
     for cat, count in categories.items():
         result += f"  • {cat}: {count} files\n"
     
-    return result
+    return _emit_tool_output("refresh_knowledge_index", result)
 
 
 @tool
@@ -341,10 +367,10 @@ def add_knowledge_directory(directory_path: str, category_name: str = "custom") 
     # Validate path
     dir_path = Path(directory_path)
     if not dir_path.exists():
-        return f"❌ Directory not found: {directory_path}"
+        return _emit_tool_output("add_knowledge_directory", f"❌ Directory not found: {directory_path}")
     
     if not dir_path.is_dir():
-        return f"❌ Not a directory: {directory_path}"
+        return _emit_tool_output("add_knowledge_directory", f"❌ Not a directory: {directory_path}")
     
     # Add to directories
     KNOWLEDGE_DIRECTORIES[category_name] = str(dir_path.relative_to(PROJECT_ROOT) if dir_path.is_relative_to(PROJECT_ROOT) else dir_path)
@@ -355,9 +381,9 @@ def add_knowledge_directory(directory_path: str, category_name: str = "custom") 
     # Count files in new category
     new_files = sum(1 for info in KNOWLEDGE_INDEX.values() if info['category'] == category_name)
     
-    return f"✅ Added knowledge directory: {directory_path}\n" \
-           f"📂 Category: {category_name}\n" \
-           f"📄 Found {new_files} knowledge file(s)"
+    return _emit_tool_output("add_knowledge_directory", f"✅ Added knowledge directory: {directory_path}\n" \
+            f"📂 Category: {category_name}\n" \
+            f"📄 Found {new_files} knowledge file(s)")
 
 
 @tool
@@ -385,7 +411,7 @@ def search_knowledge(keyword: str) -> str:
             matches.append((key, info))
     
     if not matches:
-        return f"❌ No knowledge domains found for keyword: '{keyword}'\n\n💡 Use scan_knowledge_base() to see all available domains"
+        return _emit_tool_output("search_knowledge", f"❌ No knowledge domains found for keyword: '{keyword}'\n\n💡 Use scan_knowledge_base() to see all available domains")
     
     # Format results
     output = [f"🔍 Found {len(matches)} knowledge domain(s) for '{keyword}':", ""]
@@ -403,7 +429,7 @@ def search_knowledge(keyword: str) -> str:
     
     output.append("💡 Use load_domain_knowledge(domain_name) to load")
     
-    return "\n".join(output)
+    return _emit_tool_output("search_knowledge", "\n".join(output))
 
 @tool
 def export_knowledge_index(output_path: str = None) -> str:
@@ -445,11 +471,11 @@ def export_knowledge_index(output_path: str = None) -> str:
             json.dump(export_data, f, ensure_ascii=False, indent=2)
         
         abs_path = output_file.resolve()
-        return f"✅ Knowledge index exported to: {abs_path}\n" \
-               f"📊 Total knowledge files: {len(KNOWLEDGE_INDEX)}"
+        return _emit_tool_output("export_knowledge_index", f"✅ Knowledge index exported to: {abs_path}\n" \
+               f"📊 Total knowledge files: {len(KNOWLEDGE_INDEX)}")
     
     except Exception as e:
-        return f"❌ Failed to export knowledge index: {e}"
+        return _emit_tool_output("export_knowledge_index", f"❌ Failed to export knowledge index: {e}")
 
 
 # Export available tools

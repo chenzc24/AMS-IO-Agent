@@ -6,6 +6,9 @@ import yaml
 from pathlib import Path
 from typing import List, Dict, Any
 import importlib
+from functools import wraps
+
+from src.tools.tool_output_formatter import wrap_tool_output
 
 # Tool registry mapping: tool_name -> (module_path, function_name)
 TOOL_REGISTRY = {
@@ -237,6 +240,35 @@ def load_tool_from_registry(tool_name: str):
     try:
         module = importlib.import_module(module_path)
         tool = getattr(module, func_name)
+        try:
+            if hasattr(tool, "forward") and callable(getattr(tool, "forward")):
+                if not getattr(tool, "_ams_output_wrapped", False):
+                    original_forward = tool.forward
+
+                    @wraps(original_forward)
+                    def wrapped_forward(*args, **kwargs):
+                        result = original_forward(*args, **kwargs)
+                        if isinstance(result, str):
+                            return wrap_tool_output(tool_name, result)
+                        return result
+
+                    tool.forward = wrapped_forward
+                    tool._ams_output_wrapped = True
+            elif callable(tool) and not getattr(tool, "_ams_output_wrapped", False):
+                original_tool = tool
+
+                @wraps(original_tool)
+                def wrapped_tool(*args, **kwargs):
+                    result = original_tool(*args, **kwargs)
+                    if isinstance(result, str):
+                        return wrap_tool_output(tool_name, result)
+                    return result
+
+                wrapped_tool._ams_output_wrapped = True
+                tool = wrapped_tool
+        except Exception:
+            pass
+
         return tool
     except Exception as e:
         raise ImportError(f"Failed to load tool '{tool_name}': {e}")
