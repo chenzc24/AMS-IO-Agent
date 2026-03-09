@@ -311,7 +311,7 @@ class DeviceTemplateManager:
     def get_template(self, template_name):
         return self.templates.get(template_name)
     
-    def get_pin_config(self, device_type, pin_name, pad_name, io_type='input', pin_label=None, vdd_label=None, vss_label=None, vddpst_label=None, vsspst_label=None):
+    def get_pin_connection(self, device_type, pin_name, pad_name, direction='input', pin_label=None, vdd_label=None, vss_label=None, vddpst_label=None, vsspst_label=None):
         """Get default configuration based on device type and pin name, auxiliary pins prioritize main power/ground labels."""
         if device_type in self.device_pin_rules:
             if pin_name in self.device_pin_rules[device_type]:
@@ -322,26 +322,26 @@ class DeviceTemplateManager:
                     rule['label'] = pin_label
                 else:
                     # Handle special IO configuration for PDDW16SDGZ, auxiliary pins dynamically follow main power/ground labels
-                    if device_type in ['PDDW0412SCDG'] and io_type in ['input', 'output']:   
+                    if device_type in ['PDDW0412SCDG'] and direction in ['input', 'output']:
                         if pin_name == 'OEN':
-                            if io_type == 'input':
+                            if direction == 'input':
                                     rule['label'] = vdd_label if vdd_label is not None else 'VIOLD'  # Input OEN set to high level
                             else:  # output
                                     rule['label'] = vss_label if vss_label is not None else 'GIOLD'  # Output OEN set to low level
                         elif pin_name == 'IE':
-                            if io_type == 'input':
+                            if direction == 'input':
                                 rule['label'] = vdd_label if vdd_label is not None else 'VIOLD'  # Input IE set to high level
                             else:  # output
                                 rule['label'] = vss_label if vss_label is not None else 'GIOLD'  # Output IE set to low level
                         elif pin_name == 'C':
-                            if io_type == 'input':
+                            if direction == 'input':
                                 rule['label'] = f'{pad_name}_CORE'  # Input IO: C connected to name_CORE
                                 rule['create_pin'] = True  # Pin created when connected to _CORE
                             else:  # output
                                 rule['label'] = 'noConn'  # Output IO: C connected to noConn
                                 rule['create_pin'] = False  # No pin created when connected to noConn
                         elif pin_name == 'I':
-                            if io_type == 'input':
+                            if direction == 'input':
                                 rule['label'] = vss_label if vss_label is not None else 'GIOLD'  # Input I set to low level
                                 rule['create_pin'] = False  # No pin created when connected to fixed name
                             else:  # output

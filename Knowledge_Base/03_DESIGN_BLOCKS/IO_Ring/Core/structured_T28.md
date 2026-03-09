@@ -80,10 +80,13 @@ Present concise plan summary to user.
 - Proceed only after successful validation
 
 ### Step 3: Tool Calls
-- **MUST generate both schematic and layout** - do NOT ask user which to generate
-- `generate_io_ring_schematic`: Generate schematic SKILL code
-- `generate_io_ring_layout`: Generate layout SKILL code
-- Save SKILL files to timestamp directory
+- **MUST run IO-editor confirmed flow first, then generate both schematic and layout** - do NOT ask user which to generate
+- `build_io_ring_confirmed_config`: Build `*_confirmed.json` from intent graph via IO-editor confirmation flow (`process_node="T28"`)
+  - **MUST set `confirmed_output_path` inside current turn timestamp directory** (e.g., `output/turn_YYYYMMDD_HHMMSS/{intent_stem}_confirmed.json`)
+  - Intermediate editor JSON will be generated in the same timestamp directory (`{intent_stem}_intermediate_editor.json`)
+- `generate_io_ring_schematic`: Generate schematic SKILL code from confirmed JSON (`process_node="T28"`, `consume_confirmed_only=True`)
+- `generate_io_ring_layout`: Generate layout SKILL code from confirmed JSON (`process_node="T28"`, `consume_confirmed_only=True`)
+- Save confirmed JSON and SKILL files to timestamp directory
 
 ### Step 4: Execute & Capture
 - **CRITICAL - Check Virtuoso Connection Before Execution**:
@@ -825,7 +828,8 @@ Present concise plan summary to user.
 - [ ] Step 0: Timestamp directory created
 - [ ] Step 1: Intent graph generated and saved to timestamp directory
 - [ ] Step 2: Validation passed using `validate_intent_graph` tool
-- [ ] Step 3: SKILL scripts generated and saved
+- [ ] Step 3: `build_io_ring_confirmed_config` executed successfully (`process_node="T28"`)
+- [ ] Step 3: SKILL scripts generated from confirmed JSON and saved
 - [ ] Step 4: **Virtuoso connection checked using `check_virtuoso_connection` tool before SKILL execution**
 - [ ] Step 4: Scripts executed, screenshots saved
 - [ ] Step 5: DRC check passed, results printed

@@ -11,6 +11,7 @@ class PositionCalculator:
     
     def __init__(self, config: dict):
         self.config = config
+        self.current_ring_config = dict(config) if isinstance(config, dict) else {}
     
     def calculate_chip_size(self, layout_components: List[dict]) -> Tuple[int, int]:
         """Calculate chip size based on layout components"""
@@ -26,22 +27,20 @@ class PositionCalculator:
             return chip_width, chip_height
         
         # If no ring_config, use original logic
-        max_x, max_y = 0, 0
-        for component in layout_components:
-            if component.get("type") == "pad":
-                x, y = component.get("position", [0, 0])
-                max_x = max(max_x, x)
-                max_y = max(max_y, y)
+        # max_x, max_y = 0, 0
+        # for component in layout_components:
+        #     if component.get("type") == "pad":
+        #         x, y = component.get("position", [0, 0])
+        #         max_x = max(max_x, x)
+        #         max_y = max(max_y, y)
         
-        # If no pad components, use default size
-        if max_x == 0 and max_y == 0:
-            return 460, 460  # Default size
+        # # If no pad components, use default size
+        # if max_x == 0 and max_y == 0:
+        #     return 460, 460  # Default size
         
-        # Add margins
-        width = max_x + self.config["corner_size"]
-        height = max_y + self.config["corner_size"]
-        
-        return width, height
+        # # Add margins
+        # width = max_x + self.config["corner_size"]
+        # height = max_y + self.config["corner_size"]
     
     def calculate_position_from_relative(self, relative_position: str, ring_config: dict, instance: dict = None) -> tuple:
         """Calculate actual coordinates and orientation based on relative position, supporting clockwise/counterclockwise"""

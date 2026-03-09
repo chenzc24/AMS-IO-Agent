@@ -348,7 +348,7 @@ async def submit_input(submission: InputSubmission):
 
 @app.post("/api/agent/editor/confirm")
 async def confirm_editor_layout(request: EditorConfirmRequest):
-    """Persist IO editor data and trigger backend wait-loop continuation."""
+    """Persist IO editor confirmation and trigger backend wait-loop continuation."""
     try:
         raw_path = (request.source_path or "").strip()
         if not raw_path:
@@ -357,14 +357,20 @@ async def confirm_editor_layout(request: EditorConfirmRequest):
         normalized_path = raw_path.lstrip("/")
         if normalized_path.startswith("output/"):
             target_path = (project_root / normalized_path).resolve()
+        elif normalized_path.startswith("uploads/"):
+            target_path = (project_root / normalized_path).resolve()
         elif normalized_path.startswith("turn_"):
             target_path = (Path(OUTPUT_DIR) / normalized_path).resolve()
         else:
             target_path = (Path(OUTPUT_DIR) / normalized_path).resolve()
 
         output_root = Path(OUTPUT_DIR).resolve()
-        if not str(target_path).startswith(str(output_root)):
-            raise HTTPException(status_code=400, detail="source_path must be inside output/")
+        upload_root = Path(UPLOAD_DIR).resolve()
+        if not (
+            str(target_path).startswith(str(output_root))
+            or str(target_path).startswith(str(upload_root))
+        ):
+            raise HTTPException(status_code=400, detail="source_path must be inside output/ or uploads/")
 
         target_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -377,19 +383,17 @@ async def confirm_editor_layout(request: EditorConfirmRequest):
         normalized_payload = normalize_editor_payload_for_confirm(request.data)
         confirmed_payload = build_confirmed_payload(source_payload or {}, normalized_payload)
 
-        with open(target_path, "w", encoding="utf-8") as f:
-            json.dump(confirmed_payload, f, ensure_ascii=False, indent=2)
-
-        written_paths = [str(target_path.relative_to(project_root))]
-
-        # T28 compatibility: also emit *_confirmed.json (T180 still uses intermediate file mtime).
+        write_path = target_path
         if target_path.name.endswith("_intermediate_editor.json"):
-            confirmed_path = target_path.with_name(
+            # Keep intermediate export immutable after confirmation; persist only confirmed output.
+            write_path = target_path.with_name(
                 target_path.name.replace("_intermediate_editor.json", "_confirmed.json")
             )
-            with open(confirmed_path, "w", encoding="utf-8") as f:
-                json.dump(confirmed_payload, f, ensure_ascii=False, indent=2)
-            written_paths.append(str(confirmed_path.relative_to(project_root)))
+
+        with open(write_path, "w", encoding="utf-8") as f:
+            json.dump(confirmed_payload, f, ensure_ascii=False, indent=2)
+
+        written_paths = [str(write_path.relative_to(project_root))]
 
         return {
             "ok": True,
@@ -609,26 +613,41 @@ async def agent_chat(request: AgentChatRequest):
     async def structured_event_generator():
         response_queue = queue.Queue()
         input_manager.set_response_queue(response_queue)
+        run_started_at = time.time()
         
         # Track sent files to avoid duplicates
         sent_files = set()
 
         def scan_and_yield_files():
             files_to_send = []
-            if os.path.exists(turn_dir):
-                for root, dirs, files in os.walk(turn_dir):
+            # Include full output root so frontend can still detect editor intermediates
+            # even if tools write to a sibling turn directory.
+            scan_roots = [turn_dir, OUTPUT_DIR, UPLOAD_DIR]
+            for scan_root in scan_roots:
+                if not os.path.exists(scan_root):
+                    continue
+
+                for root, dirs, files in os.walk(scan_root):
                     for file in files:
                         file_abs_path = os.path.join(root, file)
-                        # Check modification time or just existence? 
-                        # Using abs path as ID for simplicity
-                        if file_abs_path not in sent_files:
-                            sent_files.add(file_abs_path)
-                            file_rel_path = os.path.relpath(file_abs_path, project_root)
-                            files_to_send.append({
-                                "name": file,
-                                "path": file_rel_path,
-                                "url": f"/{file_rel_path}" 
-                            })
+                        if file_abs_path in sent_files:
+                            continue
+
+                        try:
+                            mtime = os.path.getmtime(file_abs_path)
+                        except OSError:
+                            continue
+
+                        if mtime < run_started_at:
+                            continue
+
+                        sent_files.add(file_abs_path)
+                        file_rel_path = os.path.relpath(file_abs_path, project_root)
+                        files_to_send.append({
+                            "name": file,
+                            "path": file_rel_path,
+                            "url": f"/{file_rel_path}"
+                        })
             return files_to_send
 
         # Define agent runner to execute in a separate thread

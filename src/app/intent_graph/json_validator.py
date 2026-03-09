@@ -338,7 +338,7 @@ def validate_position_format(position: str, width: int, height: int, side_limits
 def convert_config_to_list(config: Dict[str, Any]) -> list:
     """Convert intent graph to list format required by generator
     
-    Supports both 28nm format (device, pin_connection) and 180nm format (device_type, pin_config)
+    Supports both 28nm/180nm format with unified fields (device, pin_connection)
     Normalizes field names to standard format
     """
     config_list = []
@@ -354,14 +354,10 @@ def convert_config_to_list(config: Dict[str, Any]) -> list:
         for instance in config['instances']:
             instance_config = instance.copy()
             
-            # Normalize field names: support both device/device_type and pin_connection/pin_config
+            # Normalize field names: support both device/device_type
             # Convert device_type to device (for backward compatibility with old 180nm format)
             if 'device_type' in instance_config and 'device' not in instance_config:
                 instance_config['device'] = instance_config.pop('device_type')
-            
-            # Convert pin_config to pin_connection (for backward compatibility with old 180nm format)
-            if 'pin_config' in instance_config and 'pin_connection' not in instance_config:
-                instance_config['pin_connection'] = instance_config.pop('pin_config')
             
             # Keep original type field, don't override
             if 'type' not in instance_config:

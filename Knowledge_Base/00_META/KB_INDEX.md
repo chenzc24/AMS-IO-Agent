@@ -27,9 +27,9 @@ The knowledge base is organized into the following top-level directories:
 - Intent graph file creation, device type selection, voltage domain handling
 - Rules: corner device selection (PCORNER_G for digital, PCORNERA_G for analog)
 - Device suffix rules (V for top/bottom, H for left/right)
-- Six-step workflow: requirement analysis → intent graph validation → schematic/layout SKILL generation → SKILL execution with screenshots → DRC → LVS
+- Six-step workflow: requirement analysis → intent graph validation → IO-editor confirmed build + schematic/layout SKILL generation → SKILL execution with screenshots → DRC → LVS
 - Signal type mapping examples: analog IO (PDB3AC_H_G/V_G), analog power (PVDD1AC or PVDD3AC for voltage domain), analog ground (PVSS1AC or PVSS3AC)
-- Available tools: validate_intent_graph, generate_io_ring_schematic, generate_io_ring_layout, run_il_with_screenshot, run_drc, run_lvs
+- Available tools: validate_intent_graph, build_io_ring_confirmed_config, generate_io_ring_schematic, generate_io_ring_layout, run_il_with_screenshot, run_drc, run_lvs
 
 **Core/structured_T180.md**
 - Complete instructions for IO ring generation on 180nm process
@@ -139,11 +139,15 @@ The knowledge base is organized into the following top-level directories:
 
 3. **Use IO ring tools:**
    - `validate_intent_graph` - Validate configuration
+   - `build_io_ring_confirmed_config` - Build `*_confirmed.json` via IO-editor confirmation flow
    - `generate_io_ring_schematic` - Generate schematic SKILL code
    - `generate_io_ring_layout` - Generate layout SKILL code
    - `run_il_with_screenshot` - Execute SKILL in Virtuoso
    - `run_drc` - Design rule check
    - `run_lvs` - Layout vs schematic verification
+
+4. **For T28 flow, run in order:**
+   - `validate_intent_graph` → `build_io_ring_confirmed_config` (`process_node="T28"`) → `generate_io_ring_schematic`/`generate_io_ring_layout` (`consume_confirmed_only=True`)
 
 ### For Technology-Specific DRC Rules
 

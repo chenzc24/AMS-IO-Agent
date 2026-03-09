@@ -71,6 +71,7 @@ class LayoutGeneratorT180:
         """Set configuration parameters"""
         self.config.update(config)
         self.position_calculator.config = self.config
+        self.position_calculator.current_ring_config = self.config
         self.inner_pad_handler.config = self.config
         self.skill_generator.config = self.config
         self.auto_filler_generator.config = self.config
@@ -255,10 +256,9 @@ class LayoutGeneratorT180:
             
             component_type = self._get_component_type(instance)
             
-            io_direction = instance.get("io_direction", "")
-            io_type = instance.get("io_type", "")
+            direction = instance.get("direction", "")
             voltage_domain = instance.get("voltage_domain", {})
-            pin_config = instance.get("pin_config", {})
+            pin_connection = instance.get("pin_connection", {})
             domain = instance.get("domain", "")
             view_name = instance.get("view_name", "layout")
             geom_width, geom_height = self._resolve_component_geometry(instance, component_type, ring_config)
@@ -302,16 +302,13 @@ class LayoutGeneratorT180:
             if has_relative_semantics:
                 component["position_str"] = relative_pos
             
-            # 180nm uses io_type, fallback to io_direction
-            if io_type:
-                component["io_direction"] = io_type
-            elif io_direction:
-                component["io_direction"] = io_direction
+            if direction:
+                component["direction"] = direction
             
             if voltage_domain:
                 component["voltage_domain"] = voltage_domain
-            if pin_config:
-                component["pin_config"] = pin_config  # Use pin_config for 180nm
+            if pin_connection:
+                component["pin_connection"] = pin_connection
             
             converted_components.append(component)
         
@@ -328,10 +325,9 @@ class LayoutGeneratorT180:
                 raise ValueError(f"❌ Error: Inner pad '{name}' must have 'device' field")
             
             position_str = inner_pad.get("position", "")
-            io_type = inner_pad.get("io_type", "")
-            io_direction = inner_pad.get("io_direction", "")
+            direction = inner_pad.get("direction", "")
             voltage_domain = inner_pad.get("voltage_domain", {})
-            pin_config = inner_pad.get("pin_config", {})
+            pin_connection = inner_pad.get("pin_connection", {})
             
             outer_pads_for_inner = [comp for comp in converted_components if comp.get("type") == "pad"]
             position, orientation = self.inner_pad_handler.calculate_inner_pad_position(position_str, outer_pads_for_inner, ring_config)
@@ -345,14 +341,12 @@ class LayoutGeneratorT180:
                 "position_str": position_str
             }
             
-            if io_type:
-                component["io_direction"] = io_type
-            elif io_direction:
-                component["io_direction"] = io_direction
+            if direction:
+                component["direction"] = direction
             if voltage_domain:
                 component["voltage_domain"] = voltage_domain
-            if pin_config:
-                component["pin_config"] = pin_config  # Use pin_config for 180nm
+            if pin_connection:
+                component["pin_connection"] = pin_connection
             
             converted_components.append(component)
         

@@ -161,7 +161,7 @@ class InnerPadHandler:
                     "orientation": pad["orientation"],
                     "name": pad["name"],
                     "device": pad["device"],
-                    "io_direction": pad.get("io_direction", "unknown"),
+                    "direction": pad.get("direction", "unknown"),
                     "is_inner": False
                 })
         
@@ -181,7 +181,7 @@ class InnerPadHandler:
                     "orientation": orientation,
                     "name": inner_pad["name"],
                     "device": inner_pad["device"],
-                    "io_direction": inner_pad.get("io_direction", "unknown"),
+                    "direction": inner_pad.get("direction", "unknown"),
                     "is_inner": True
                 })
         
@@ -201,7 +201,7 @@ class InnerPadHandler:
                         "orientation": pad["orientation"],
                         "name": pad["name"],
                         "device": pad["device"],
-                        "io_direction": pad.get("io_direction", "unknown"),
+                        "direction": pad.get("direction", "unknown"),
                         "is_inner": False
                     })
         else:
@@ -212,7 +212,7 @@ class InnerPadHandler:
                         "orientation": pad["orientation"],
                         "name": pad["name"],
                         "device": pad["device"],
-                        "io_direction": pad.get("io_direction", "unknown"),
+                        "direction": pad.get("direction", "unknown"),
                         "is_inner": False
                     })
             # Inner ring digital pads for non-T180
@@ -228,7 +228,7 @@ class InnerPadHandler:
                         "orientation": orientation,
                         "name": inner_pad["name"],
                         "device": inner_pad["device"],
-                        "io_direction": inner_pad.get("io_direction", "unknown"),
+                        "direction": inner_pad.get("direction", "unknown"),
                         "is_inner": True
                     })
 
@@ -246,82 +246,58 @@ class InnerPadHandler:
                         "orientation": orientation,
                         "name": inner_pad["name"],
                         "device": inner_pad["device"],
-                        "io_direction": inner_pad.get("io_direction", "unknown"),
+                        "direction": inner_pad.get("direction", "unknown"),
                         "is_inner": True
                     })
         return digital_pads
     
     def get_inner_pad_gap_indices(self, inner_pads: List[dict], outer_pads: List[dict]) -> List[tuple]:
-        """Get index pairs that need to reserve space for inner pads, calculated based on placement order, supporting clockwise/counterclockwise"""
-        placement_order = self.config.get("placement_order", "counterclockwise")
+        """Get (side, i, j, inner_pad) tuples for inner-pad gaps based on relative positions."""
+        _ = outer_pads
         gap_pairs = []
-        
-        # Sort outer pads by placement order
-        sorted_outer_pads = self.position_calculator.sort_components_by_position(outer_pads, placement_order)
-        
+
         for inner_pad in inner_pads:
-            # Inner pad position may be absolute coordinates, need to get position_str from original configuration
-            # Here we match by name, or directly use the position_str field
             position_str = inner_pad.get("position_str", "")
             if not position_str and isinstance(inner_pad.get("position"), str):
                 position_str = inner_pad.get("position")
-            
-            # If position_str is empty, it means it's already absolute coordinates, skip this inner pad
+
             if not position_str or not isinstance(position_str, str):
                 continue
-                
-            parts = position_str.split('_')
-            if len(parts) == 3:
-                side = parts[0]
-                pad1_index = int(parts[1])
-                pad2_index = int(parts[2])
-                
-                # Calculate pad count per side
-                width = self.config.get("width", 3)
-                height = self.config.get("height", 3)
-                side_pad_count = {
-                    "top": width,
-                    "bottom": width,
-                    "left": height,
-                    "right": height
-                }
-                N = side_pad_count.get(side, 0)
-                
-                # Adjust index direction based on placement_order
-                if placement_order == "clockwise":
-                    real_pad1_index = pad1_index
-                    real_pad2_index = pad2_index
-                else:
-                    real_pad1_index = (N - 1) - pad1_index
-                    real_pad2_index = (N - 1) - pad2_index
-                
-                # Determine pad starting index based on placement order
-                if placement_order == "clockwise":
-                    # Clockwise: Top-left -> Top edge -> Top-right -> Right edge -> Bottom-right -> Bottom edge -> Bottom-left -> Left edge
-                    side_start_indices = {
-                        "top": 0,
-                        "right": len([p for p in sorted_outer_pads if p["orientation"] == "R180"]),
-                        "bottom": len([p for p in sorted_outer_pads if p["orientation"] == "R180"]) + len([p for p in sorted_outer_pads if p["orientation"] == "R90"]),
-                        "left": len([p for p in sorted_outer_pads if p["orientation"] == "R180"]) + len([p for p in sorted_outer_pads if p["orientation"] == "R90"]) + len([p for p in sorted_outer_pads if p["orientation"] == "R0"])
-                    }
-                else:
-                    # Counterclockwise: Top-left -> Left edge -> Bottom-left -> Bottom edge -> Bottom-right -> Right edge -> Top-right -> Top edge
-                    side_start_indices = {
-                        "left": 0,
-                        "bottom": len([p for p in sorted_outer_pads if p["orientation"] == "R270"]),
-                        "right": len([p for p in sorted_outer_pads if p["orientation"] == "R270"]) + len([p for p in sorted_outer_pads if p["orientation"] == "R0"]),
-                        "top": len([p for p in sorted_outer_pads if p["orientation"] == "R270"]) + len([p for p in sorted_outer_pads if p["orientation"] == "R0"]) + len([p for p in sorted_outer_pads if p["orientation"] == "R90"])
-                    }
-                
-                if side in side_start_indices:
-                    start_index = side_start_indices[side]
-                    pad1_global_index = start_index + real_pad1_index
-                    pad2_global_index = start_index + real_pad2_index
-                    gap_pairs.append((pad1_global_index, pad2_global_index))
-        
+
+            parts = position_str.split("_")
+            if len(parts) != 3:
+                continue
+
+            side = parts[0]
+            if side not in {"top", "right", "bottom", "left"}:
+                continue
+
+            if not parts[1].isdigit() or not parts[2].isdigit():
+                continue
+
+            pad1_index = int(parts[1])
+            pad2_index = int(parts[2])
+            gap_pairs.append((side, pad1_index, pad2_index, inner_pad))
+
         return gap_pairs
-    
+
+    def get_inner_pads_for_gap(self, side: str, index1: int, index2: int, inner_pads: List[dict], outer_pads: List[dict]) -> List[dict]:
+        """Return inner pad records whose gap matches side/index pair (order-insensitive)."""
+        matches = []
+        for gap_side, pad1, pad2, inner_pad in self.get_inner_pad_gap_indices(inner_pads, outer_pads):
+            if gap_side != side:
+                continue
+            if (pad1 == index1 and pad2 == index2) or (pad1 == index2 and pad2 == index1):
+                matches.append(inner_pad)
+        return matches
+
+    def is_inner_pad_gap_by_side_indices(self, side: str, index1: int, index2: int, inner_pads: List[dict], outer_pads: List[dict]) -> bool:
+        """Check whether there is an inner-pad gap between two side-local pad indices."""
+        return bool(self.get_inner_pads_for_gap(side, index1, index2, inner_pads, outer_pads))
+
     def is_inner_pad_gap_by_index(self, index1: int, index2: int, inner_pads: List[dict], outer_pads: List[dict]) -> bool:
-        """Check if space needs to be reserved for inner pads between two pads based on index"""
-        gap_pairs = self.get_inner_pad_gap_indices(inner_pads, outer_pads)
-        return (index1, index2) in gap_pairs or (index2, index1) in gap_pairs 
+        """Backward-compatible wrapper using side-agnostic matching."""
+        for _, pad1, pad2, _ in self.get_inner_pad_gap_indices(inner_pads, outer_pads):
+            if (pad1 == index1 and pad2 == index2) or (pad1 == index2 and pad2 == index1):
+                return True
+        return False

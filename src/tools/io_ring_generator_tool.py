@@ -13,7 +13,12 @@ from src.app.intent_graph.json_validator import validate_config, convert_config_
 from src.app.layout.layout_generator_factory import generate_layout_from_json, create_layout_generator
 from src.app.layout.T28.layout_visualizer import visualize_layout, visualize_layout_from_components
 from src.app.layout.T180.layout_visualizer import visualize_layout_T180
-from src.app.layout.T180.confirmed_config_builder import build_confirmed_config_from_io_config
+from src.app.layout.T180.confirmed_config_builder import (
+    build_confirmed_config_from_io_config as build_confirmed_config_from_io_config_t180,
+)
+from src.app.layout.T28.confirmed_config_builder import (
+    build_confirmed_config_from_io_config as build_confirmed_config_from_io_config_t28,
+)
 from src.app.layout.device_classifier import DeviceClassifier, _normalize_process_node
 from src.app.layout.process_node_config import get_process_node_config, get_template_file_paths, list_supported_process_nodes
 
@@ -72,7 +77,11 @@ def _resolve_confirmed_config_path(config_path: Path, process_node: str, consume
         return expected_confirmed
 
     if process_node == "T180":
-        generated_confirmed = Path(build_confirmed_config_from_io_config(str(config_path)))
+        generated_confirmed = Path(build_confirmed_config_from_io_config_t180(str(config_path)))
+        if generated_confirmed.exists():
+            return generated_confirmed
+    elif process_node == "T28":
+        generated_confirmed = Path(build_confirmed_config_from_io_config_t28(str(config_path)))
         if generated_confirmed.exists():
             return generated_confirmed
 
@@ -93,7 +102,7 @@ def build_io_ring_confirmed_config(
     Args:
         config_file_path: Path to the initial intent-graph JSON file.
         confirmed_output_path: Optional output path for the confirmed JSON file.
-        process_node: Process node selector (currently supports "T180" only).
+        process_node: Process node selector (supports "T180" and "T28").
 
     Returns:
         String description of confirmation result and generated file path.
@@ -113,13 +122,21 @@ def build_io_ring_confirmed_config(
         except ValueError as e:
             return _emit_tool_output("build_io_ring_confirmed_config", f"❌ Error: {_format_exception(e)}")
 
-        if process_node != "T180":
-            return _emit_tool_output("build_io_ring_confirmed_config", "❌ Error: build_io_ring_confirmed_config currently supports T180 only")
-
-        confirmed_path = build_confirmed_config_from_io_config(
-            source_json_path=str(config_path),
-            confirmed_output_path=confirmed_output_path,
-        )
+        if process_node == "T180":
+            confirmed_path = build_confirmed_config_from_io_config_t180(
+                source_json_path=str(config_path),
+                confirmed_output_path=confirmed_output_path,
+            )
+        elif process_node == "T28":
+            confirmed_path = build_confirmed_config_from_io_config_t28(
+                source_json_path=str(config_path),
+                confirmed_output_path=confirmed_output_path,
+            )
+        else:
+            return _emit_tool_output(
+                "build_io_ring_confirmed_config",
+                f"❌ Error: Unsupported process_node for confirmed build: {process_node}",
+            )
 
         return _emit_tool_output("build_io_ring_confirmed_config", (
             f"✅ Confirmed IO config generated successfully: {confirmed_path}\n"
@@ -413,7 +430,7 @@ def generate_io_ring_confirmed_artifacts(
     Args:
         config_file_path: Path to the initial intent-graph JSON file.
         output_dir: Optional output directory for the generated artifacts.
-        process_node: Process node selector (currently supports "T180" only).
+        process_node: Process node selector (supports "T180" and "T28").
         
     Returns:
         String description of generation result.
@@ -437,10 +454,16 @@ def generate_io_ring_confirmed_artifacts(
         layout_path = out_dir / f"{source_path.stem}_layout.il"
         schematic_path = out_dir / f"{source_path.stem}_schematic.il"
 
-        confirmed_built = build_confirmed_config_from_io_config(
-            source_json_path=str(source_path),
-            confirmed_output_path=str(confirmed_path),
-        )
+        if process_node == "T180":
+            confirmed_built = build_confirmed_config_from_io_config_t180(
+                source_json_path=str(source_path),
+                confirmed_output_path=str(confirmed_path),
+            )
+        else:
+            confirmed_built = build_confirmed_config_from_io_config_t28(
+                source_json_path=str(source_path),
+                confirmed_output_path=str(confirmed_path),
+            )
 
         layout_result = generate_io_ring_layout(
             config_file_path=str(confirmed_path),

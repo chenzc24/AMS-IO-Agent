@@ -360,7 +360,7 @@ class SkillGeneratorT28:
             
             x, y = pad["position"]
             orient = pad["orientation"]
-            is_input = pad["io_direction"] == "input"
+            is_input = pad["direction"] == "input"
             
             if orient == "R0":  # Bottom edge pad
                 base_y = y + ring_config["pad_height"] - 0.125

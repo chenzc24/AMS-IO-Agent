@@ -34,6 +34,80 @@ EDITOR_COMPONENT_TEMPLATES = {
     },
 }
 
+# Runtime/UI-only fields that should never persist into confirmed payload.
+RUNTIME_ONLY_FIELDS = {
+    "meta",
+    "side",
+    "order",
+    "position_abs",
+    "position_xy",
+    "x",
+    "y",
+    "z",
+    "selected",
+    "dragging",
+    "hovered",
+    "isSelected",
+    "isDragging",
+    "displayColor",
+    "ui_state",
+    "_relative_position",
+    "_order_from_relative",
+    "_original_position",
+}
+
+# Structural fields that must come from editor-confirmed semantics and must not
+# be indirectly overridden by runtime noise.
+PROTECTED_STRUCTURAL_FIELDS = {"position", "position_str", "type", "name", "device"}
+
+
+def _is_empty_pin_payload(value: Any) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, dict) and not value:
+        return True
+    return False
+
+
+def _resolve_process_node(payload: Any) -> str:
+    if not isinstance(payload, dict):
+        return ""
+    ring_config = payload.get("ring_config")
+    if not isinstance(ring_config, dict):
+        return ""
+    process_node = ring_config.get("process_node")
+    if not isinstance(process_node, str):
+        return ""
+    return process_node.strip().upper()
+
+
+def _strip_t28_editor_geometry(payload: Any) -> Any:
+    if not isinstance(payload, dict):
+        return payload
+
+    normalized = deepcopy(payload)
+    for key in ("instances", "layout_data"):
+        items = normalized.get(key)
+        if not isinstance(items, list):
+            continue
+
+        cleaned_items = []
+        for item in items:
+            if not isinstance(item, dict):
+                cleaned_items.append(item)
+                continue
+
+            cleaned = dict(item)
+            cleaned.pop("pad_width", None)
+            cleaned.pop("pad_height", None)
+            cleaned.pop("filler_width", None)
+            cleaned.pop("filler_height", None)
+            cleaned_items.append(cleaned)
+
+        normalized[key] = cleaned_items
+
+    return normalized
+
 
 def guess_component_type(instance: dict) -> str:
     comp_type = str(instance.get("type", "")).strip().lower()
@@ -43,9 +117,9 @@ def guess_component_type(instance: dict) -> str:
     device = str(instance.get("device", "")).upper()
     if device == "BLANK":
         return "blank"
-    if device == "PCORNER":
+    if device in {"PCORNER", "PCORNERA_G", "PCORNER_G"}:
         return "corner"
-    if device.startswith("PFILLER"):
+    if device.startswith("PFILLER") or device == "PRCUTA_G" or "RCUT" in device:
         return "filler"
     return "pad"
 
@@ -106,8 +180,12 @@ def normalize_editor_instance(instance: dict) -> dict:
             if rebuilt_position:
                 normalized["position"] = rebuilt_position
 
-    for runtime_key in ("side", "order", "position_str", "_relative_position", "_order_from_relative"):
+    for runtime_key in ("side", "order", "_relative_position", "_order_from_relative"):
         normalized.pop(runtime_key, None)
+
+    for runtime_key in RUNTIME_ONLY_FIELDS:
+        if runtime_key not in PROTECTED_STRUCTURAL_FIELDS:
+            normalized.pop(runtime_key, None)
 
     normalized.pop("meta", None)
     return normalized
@@ -163,6 +241,10 @@ def merge_key_with_duplicate_guard(
     base_sig_counts: dict,
     incoming_sig_counts: dict,
 ) -> Optional[str]:
+    instance_id = instance.get("id")
+    if isinstance(instance_id, str) and instance_id.strip():
+        return f"id:{instance_id.strip()}"
+
     sig = instance_signature(instance)
     if sig:
         duplicate_count = max(base_sig_counts.get(sig, 0), incoming_sig_counts.get(sig, 0))
@@ -171,29 +253,42 @@ def merge_key_with_duplicate_guard(
             if isinstance(position, str) and position.strip():
                 return f"{sig}|pos:{position.strip()}"
         return sig
-
-    instance_id = instance.get("id")
-    if isinstance(instance_id, str) and instance_id.strip():
-        return f"id:{instance_id.strip()}"
     return None
 
 
 def apply_existing_shape(base_item: dict, incoming_item: dict) -> dict:
     updated = dict(base_item)
-    for key in list(base_item.keys()):
+    sanitized_incoming = {
+        key: value
+        for key, value in incoming_item.items()
+        if key not in RUNTIME_ONLY_FIELDS or key in PROTECTED_STRUCTURAL_FIELDS
+    }
+
+    # FE-first: incoming editor fields are authoritative unless explicitly empty pin payload.
+    for key, value in sanitized_incoming.items():
         if key == "meta":
             continue
-        if key in incoming_item:
-            updated[key] = incoming_item[key]
+        if key == "pin_connection" and _is_empty_pin_payload(value):
+            continue
+        updated[key] = value
 
-    if "position" in base_item and "position" in incoming_item:
-        updated["position"] = incoming_item["position"]
+    for key in PROTECTED_STRUCTURAL_FIELDS:
+        if key in sanitized_incoming and sanitized_incoming.get(key) not in (None, ""):
+            updated[key] = sanitized_incoming[key]
 
     updated.pop("meta", None)
     return updated
 
 
 def build_new_instance_from_template(new_item: dict, base_instances: List[dict], ring_config: dict) -> dict:
+    del base_instances  # No longer used: FE-first should not be ref-driven.
+
+    sanitized_new_item = {
+        key: value
+        for key, value in new_item.items()
+        if key not in RUNTIME_ONLY_FIELDS or key in PROTECTED_STRUCTURAL_FIELDS
+    }
+
     comp_type = guess_component_type(new_item)
     template = dict(EDITOR_COMPONENT_TEMPLATES[comp_type])
     if comp_type == "filler":
@@ -206,43 +301,8 @@ def build_new_instance_from_template(new_item: dict, base_instances: List[dict],
         if isinstance(pad_height, (int, float)) and pad_height > 0:
             template["pad_height"] = int(pad_height)
 
-    ref = None
-    for candidate in base_instances:
-        if isinstance(candidate, dict) and guess_component_type(candidate) == comp_type:
-            ref = candidate
-            break
-
-    if ref is None:
-        ref = {}
-
-    created = {}
-    for key, ref_value in ref.items():
-        if key == "meta":
-            continue
-        if key in new_item:
-            created[key] = new_item[key]
-            continue
-
-        if key in template:
-            created[key] = template[key]
-            continue
-
-        if key == "view_name":
-            created[key] = ring_config.get("view_name", template.get("view_name", "layout"))
-            continue
-
-        if key == "pad_width":
-            created[key] = ring_config.get("pad_width", template.get("pad_width", 80))
-            continue
-
-        if key == "pad_height":
-            created[key] = ring_config.get("pad_height", template.get("pad_height", 120))
-            continue
-
-        created[key] = ref_value
-
-    if not created:
-        created = dict(new_item)
+    # FE-first: trust incoming new instance, only fill missing defaults.
+    created = dict(sanitized_new_item)
 
     for k, v in template.items():
         if created.get(k) in (None, ""):
@@ -254,6 +314,18 @@ def build_new_instance_from_template(new_item: dict, base_instances: List[dict],
         created["pad_width"] = ring_config.get("pad_width", template.get("pad_width", 80))
     if created.get("pad_height") in (None, ""):
         created["pad_height"] = ring_config.get("pad_height", template.get("pad_height", 120))
+
+    # Backward compatibility: downstream logic may still reference filler_* dimensions.
+    process_node = str(ring_config.get("process_node", "")).strip().upper()
+    if process_node != "T28" and comp_type in {"filler", "blank"}:
+        if created.get("filler_width") in (None, ""):
+            created["filler_width"] = created.get("pad_width")
+        if created.get("filler_height") in (None, ""):
+            created["filler_height"] = created.get("pad_height")
+
+    for runtime_key in RUNTIME_ONLY_FIELDS:
+        if runtime_key not in PROTECTED_STRUCTURAL_FIELDS:
+            created.pop(runtime_key, None)
 
     created.pop("meta", None)
     return created
@@ -322,7 +394,10 @@ def merge_instances_with_structure(base_instances: List[dict], incoming_instance
 
 def build_confirmed_payload(source_payload: dict, editor_payload: dict) -> dict:
     if not isinstance(source_payload, dict):
-        return normalize_editor_payload_for_confirm(editor_payload)
+        fallback_payload = normalize_editor_payload_for_confirm(editor_payload)
+        if _resolve_process_node(fallback_payload) == "T28":
+            fallback_payload = _strip_t28_editor_geometry(fallback_payload)
+        return fallback_payload
 
     normalized_editor = normalize_editor_payload_for_confirm(editor_payload)
     if not isinstance(normalized_editor, dict):
@@ -336,6 +411,10 @@ def build_confirmed_payload(source_payload: dict, editor_payload: dict) -> dict:
         for key in list(result["ring_config"].keys()):
             if key in normalized_editor["ring_config"]:
                 result["ring_config"][key] = normalized_editor["ring_config"][key]
+        if "process_node" in normalized_editor["ring_config"]:
+            result["ring_config"]["process_node"] = normalized_editor["ring_config"]["process_node"]
+    elif isinstance(normalized_editor.get("ring_config"), dict):
+        result["ring_config"] = dict(normalized_editor["ring_config"])
 
     if "instances" in result and isinstance(result.get("instances"), list):
         merge_source = incoming_instances if isinstance(incoming_instances, list) else incoming_layout_data
@@ -358,20 +437,39 @@ def build_confirmed_payload(source_payload: dict, editor_payload: dict) -> dict:
     if isinstance(result.get("instances"), list) and isinstance(result.get("layout_data"), list):
         result["layout_data"] = deepcopy(result["instances"])
 
+    if _resolve_process_node(result) == "T28":
+        result = _strip_t28_editor_geometry(result)
+
     return result
 
 
 def resolve_source_intent_path(target_path: Path) -> Optional[Path]:
+    def _resolve_fallback_in_uploads(origin_name: str) -> Optional[Path]:
+        for ancestor in target_path.parents:
+            if ancestor.name == "output":
+                project_root = ancestor.parent
+                upload_candidate = project_root / "uploads" / origin_name
+                if upload_candidate.exists():
+                    return upload_candidate
+                break
+        return None
+
     if target_path.name.endswith("_intermediate_editor.json"):
         origin_name = target_path.name.replace("_intermediate_editor.json", ".json")
         origin_path = target_path.with_name(origin_name)
         if origin_path.exists():
             return origin_path
+        fallback_path = _resolve_fallback_in_uploads(origin_name)
+        if fallback_path is not None:
+            return fallback_path
 
     if target_path.name.endswith("_confirmed.json"):
         origin_name = target_path.name.replace("_confirmed.json", ".json")
         origin_path = target_path.with_name(origin_name)
         if origin_path.exists():
             return origin_path
+        fallback_path = _resolve_fallback_in_uploads(origin_name)
+        if fallback_path is not None:
+            return fallback_path
 
     return None

@@ -60,6 +60,45 @@ class SchematicGenerator:
             return f"{prefix}_{suffix}<{index}>"  # e.g., "D_CORE<0>"
         # If pattern doesn't match, return as is (may already be in correct format or no brackets)
         return label
+
+    def _parse_position_for_order(self, position_desc: Any) -> tuple[str | None, int, int]:
+        if not isinstance(position_desc, str):
+            return None, 10**9, 10**9
+
+        if position_desc in {"top_left", "top_right", "bottom_left", "bottom_right"}:
+            return None, 10**9, 10**9
+
+        parts = position_desc.split("_")
+        if len(parts) >= 2 and parts[0] in {"top", "right", "bottom", "left"} and parts[1].isdigit():
+            side = parts[0]
+            idx1 = int(parts[1])
+            idx2 = int(parts[2]) if len(parts) >= 3 and parts[2].isdigit() else -1
+            return side, idx1, idx2
+
+        return None, 10**9, 10**9
+
+    def _is_schematic_consumable_instance(self, inst: dict) -> bool:
+        inst_type = str(inst.get("type", "")).strip().lower()
+        if inst_type in {"pad", "inner_pad"}:
+            return True
+        if inst_type in {"", "instance"}:
+            return True
+        return False
+
+    def _sort_instances_for_schematic(self, instances: list, placement_order: str) -> list:
+        side_order = ["top", "right", "bottom", "left"]
+        if str(placement_order).lower() != "clockwise":
+            side_order = ["left", "bottom", "right", "top"]
+        side_rank = {side: rank for rank, side in enumerate(side_order)}
+
+        decorated = []
+        for index, inst in enumerate(instances):
+            side, idx1, idx2 = self._parse_position_for_order(inst.get("position"))
+            rank = side_rank.get(side, 99)
+            decorated.append((rank, idx1, idx2, index, inst))
+
+        decorated.sort(key=lambda item: (item[0], item[1], item[2], item[3]))
+        return [item[4] for item in decorated]
     
     def get_device_offset(self, device_type: str) -> float:
         """Get offset based on device type and orientation (180nm process node)
@@ -102,12 +141,6 @@ class SchematicGenerator:
         if 'position' not in config:
             return config
         
-        # Handle direction field, compatible with io_direction
-        if 'io_direction' in config and 'direction' not in config:
-            config['direction'] = config['io_direction']
-        # Handle legacy io_type field (input/output)
-        if 'io_type' in config and 'direction' not in config:
-            config['direction'] = config['io_type']
         # Normalize direction value to lowercase for robust matching
         if 'direction' in config and isinstance(config['direction'], str):
             config['direction'] = config['direction'].strip().lower()
@@ -355,7 +388,7 @@ class SchematicGenerator:
         # Format label_text for SKILL net label compatibility (convert D<0>_CORE to D_CORE<0>)
         label_text = self.format_skill_net_label(label_text)
         
-        pin_configs = {
+        side_pin_style = {
             'right': {
                 'extend_x': 0.750, 'extend_y': 0.0,
                 'label_offset_x': 0.25, 'label_offset_y': 0.0,
@@ -382,7 +415,7 @@ class SchematicGenerator:
             }
         }
         
-        config = pin_configs[side]
+        config = side_pin_style[side]
         end_x = pin_x + config['extend_x']
         end_y = pin_y + config['extend_y']
         label_x = pin_x + config['label_offset_x']
@@ -398,9 +431,9 @@ class SchematicGenerator:
         
         return commands
     
-    def get_default_pin_config(self, device, pin_name, pad_name, direction='input'):
-        """Get default pin configuration"""
-        return self.template_manager.get_pin_config(device, pin_name, pad_name, direction)
+    def get_default_pin_connection(self, device, pin_name, pad_name, direction='input'):
+        """Get default pin connection configuration"""
+        return self.template_manager.get_pin_connection(device, pin_name, pad_name, direction)
     
     def get_noconn_orientation(self, device_orientation):
         """Get corresponding orientation for noConn component"""
@@ -467,9 +500,17 @@ class SchematicGenerator:
         for inst in instances:
             normalized_inst = self.normalize_device_config(inst.copy())
             normalized_instances.append(normalized_inst)
+
+        schematic_instances = [
+            inst for inst in normalized_instances if self._is_schematic_consumable_instance(inst)
+        ]
+        schematic_instances = self._sort_instances_for_schematic(
+            schematic_instances,
+            placement_order,
+        )
         
         # Get outer ring pad position information for inner ring pad position calculation
-        outer_pads = self.get_outer_pad_positions(normalized_instances, ring_config)
+        outer_pads = self.get_outer_pad_positions(schematic_instances, ring_config)
         
         commands = []
         commands.append("cv = geGetWindowCellView()")
@@ -477,10 +518,7 @@ class SchematicGenerator:
         loaded_devices = set()
         noConn_loaded = False  # Mark whether noConn component has been loaded
         
-        for inst in normalized_instances:
-            # Skip corner point processing
-            if inst.get('type') == 'corner':
-                continue
+        for inst in schematic_instances:
                 
             device = inst['device']
             template = self.template_manager.get_template(device)
@@ -549,7 +587,7 @@ class SchematicGenerator:
                 direction = inst.get('direction', 'input')  # Default to input IO
                 pin_cfg = pin_connection_dict.get(pin['name'], {})
                 pin_label = pin_cfg.get('label')
-                default_config = self.template_manager.get_pin_config(
+                default_config = self.template_manager.get_pin_connection(
                     device, pin['name'], inst['name'], direction,
                     pin_label=pin_label,
                     vdd_label=vdd_label,
@@ -580,13 +618,13 @@ class SchematicGenerator:
                     # Get noConn orientation
                     noConn_orientation = self.get_noconn_orientation(orientation)
                     # Calculate wire end position
-                    pin_configs = {
+                    side_pin_style = {
                         'right': {'extend_x': 0.750, 'extend_y': 0.0},
                         'left': {'extend_x': -0.750, 'extend_y': 0.0},
                         'top': {'extend_x': 0.0, 'extend_y': 0.750},
                         'bottom': {'extend_x': 0.0, 'extend_y': -0.750}
                     }
-                    config = pin_configs[side]
+                    config = side_pin_style[side]
                     end_x = final_pin_x + config['extend_x']
                     end_y = final_pin_y + config['extend_y']
                     # Generate wire command (don't generate label and pin)
@@ -612,7 +650,7 @@ class SchematicGenerator:
         
         print(f"✅ Successfully generated schematic file: {output_file}")
         print(f"📊 Statistics:")
-        print(f"  - Device instance count: {len(normalized_instances)}")
+        print(f"  - Device instance count: {len(schematic_instances)}")
         print(f"  - Device types used: {', '.join(loaded_devices)}")
         print(f"  - SKILL command count: {len(commands)}")
         

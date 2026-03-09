@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Build confirmed IO config from initial io_config (T180): filler + IO editor confirmation only."""
+"""Build confirmed IO config from initial io_config (T28): filler + IO editor confirmation only."""
 
 import json
 import time
 import traceback
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
 from ..device_classifier import DeviceClassifier
-from ..layout_validator import LayoutValidator
-from .auto_filler import AutoFillerGeneratorT180
+from .auto_filler import AutoFillerGeneratorT28
 
 
-def _ensure_unique_nonfunctional_names(classifier: DeviceClassifier, components: List[dict]) -> List[dict]:
+def _ensure_unique_nonfunctional_names(components: List[dict]) -> List[dict]:
     used_names = set()
     for component in components:
         if not isinstance(component, dict):
@@ -20,7 +20,11 @@ def _ensure_unique_nonfunctional_names(classifier: DeviceClassifier, components:
 
         comp_type = component.get("type")
         device = str(component.get("device", ""))
-        is_nonfunctional = comp_type in {"filler", "blank"} or classifier.is_filler(device)
+        is_nonfunctional = (
+            comp_type in {"filler"}
+            or DeviceClassifier.is_filler_device(device, "T28")
+            or DeviceClassifier.is_separator_device(device, "T28")
+        )
 
         raw_name = component.get("name")
         name = str(raw_name).strip() if raw_name is not None else ""
@@ -52,44 +56,42 @@ def _ensure_unique_nonfunctional_names(classifier: DeviceClassifier, components:
     return components
 
 
-def _prepare_t180_components(
+def _prepare_t28_components(
     source_json_path: str,
-) -> Tuple[Any, DeviceClassifier, LayoutValidator, AutoFillerGeneratorT180, dict, List[dict], List[dict]]:
-    with open(source_json_path, 'r', encoding='utf-8') as f:
+) -> Tuple[Any, dict, List[dict], List[dict]]:
+    with open(source_json_path, "r", encoding="utf-8") as f:
         config = json.load(f)
 
-    instances = config.get("instances", [])
+    raw_instances = config.get("instances")
+    if not isinstance(raw_instances, list):
+        raw_instances = config.get("layout_data", [])
+    instances = raw_instances if isinstance(raw_instances, list) else []
     ring_config = config.get("ring_config", {})
-    ring_config["process_node"] = "T180"
+    if not isinstance(ring_config, dict):
+        ring_config = {}
+    ring_config["process_node"] = "T28"
 
-    from .layout_generator import LayoutGeneratorT180
+    from .layout_generator import LayoutGeneratorT28
 
-    generator = LayoutGeneratorT180()
+    generator = LayoutGeneratorT28()
 
-    if ring_config.get("chip_width") is None or ring_config.get("chip_height") is None:
-        pad_spacing = ring_config.get("pad_spacing", generator.config["pad_spacing"])
+    if "width" in ring_config and "chip_width" not in ring_config:
+        width = ring_config.get("width", 3)
+        height = ring_config.get("height", 3)
         corner_size = ring_config.get("corner_size", generator.config["corner_size"])
+        pad_spacing = ring_config.get("pad_spacing", generator.config["pad_spacing"])
 
-        def _as_count(value, default=3):
-            if isinstance(value, (int, float)):
-                return int(value)
-            try:
-                return int(value)
-            except (TypeError, ValueError):
-                return default
+        ring_config["chip_width"] = width * pad_spacing + corner_size * 2
+        ring_config["chip_height"] = height * pad_spacing + corner_size * 2
 
-        top_count = _as_count(ring_config.get("top_count", 3))
-        bottom_count = _as_count(ring_config.get("bottom_count", 3))
-        left_count = _as_count(ring_config.get("left_count", 3))
-        right_count = _as_count(ring_config.get("right_count", 3))
-        width_filler10 = 10
-
-        if ring_config.get("chip_width") is None:
-            horizontal_count = max(top_count, bottom_count)
-            ring_config["chip_width"] = horizontal_count * pad_spacing + corner_size * 2 + width_filler10
-        if ring_config.get("chip_height") is None:
-            vertical_count = max(left_count, right_count)
-            ring_config["chip_height"] = vertical_count * pad_spacing + corner_size * 2 + width_filler10
+        if "top_count" not in ring_config:
+            ring_config["top_count"] = width
+        if "bottom_count" not in ring_config:
+            ring_config["bottom_count"] = width
+        if "left_count" not in ring_config:
+            ring_config["left_count"] = height
+        if "right_count" not in ring_config:
+            ring_config["right_count"] = height
 
     if "library_name" in config and "library_name" not in ring_config:
         ring_config["library_name"] = config["library_name"]
@@ -97,6 +99,12 @@ def _prepare_t180_components(
         ring_config["cell_name"] = config["cell_name"]
 
     generator.set_config(ring_config)
+    if "chip_width" in ring_config:
+        generator.config["chip_width"] = ring_config["chip_width"]
+        generator.auto_filler_generator.config["chip_width"] = ring_config["chip_width"]
+    if "chip_height" in ring_config:
+        generator.config["chip_height"] = ring_config["chip_height"]
+        generator.auto_filler_generator.config["chip_height"] = ring_config["chip_height"]
     if "pad_width" not in ring_config:
         ring_config["pad_width"] = generator.config["pad_width"]
     if "pad_height" not in ring_config:
@@ -112,10 +120,6 @@ def _prepare_t180_components(
     if "device_masters" not in ring_config:
         ring_config["device_masters"] = generator.config.get("device_masters", {})
 
-    classifier = DeviceClassifier(process_node="T180")
-    layout_validator = LayoutValidator()
-    auto_filler_generator = AutoFillerGeneratorT180(generator.config)
-
     outer_pads = []
     inner_pads = []
     corners = []
@@ -127,57 +131,68 @@ def _prepare_t180_components(
         elif instance.get("type") == "corner":
             corners.append(instance)
 
-    validation_source_components = outer_pads + corners
-    validation_components = generator.convert_relative_to_absolute(
-        validation_source_components,
-        ring_config,
-        require_corners=True,
-    )
-    validation_result = layout_validator.validate_layout_rules(validation_components, "T180")
-    if not validation_result["valid"]:
-        raise ValueError(f"Layout rule validation failed: {validation_result['message']}")
-
     has_input_fillers = any(
-        comp.get("type") == "filler" or classifier.is_filler(comp.get("device", ""))
+        comp.get("type") == "filler"
+        or DeviceClassifier.is_filler_device(comp.get("device", ""), "T28")
+        or DeviceClassifier.is_separator_device(comp.get("device", ""), "T28")
         for comp in instances
     )
+
     if has_input_fillers:
         all_components_with_fillers = instances
     else:
-        all_components_with_fillers = auto_filler_generator.auto_insert_default_fillers(validation_source_components, inner_pads)
+        validation_components = outer_pads + corners
+        auto_filler_generator = AutoFillerGeneratorT28(generator.config)
+        all_components_with_fillers = auto_filler_generator.auto_insert_fillers_with_inner_pads(
+            validation_components,
+            inner_pads,
+        )
 
-    all_components_with_fillers = _ensure_unique_nonfunctional_names(classifier, all_components_with_fillers)
-    return generator, classifier, layout_validator, auto_filler_generator, ring_config, all_components_with_fillers, inner_pads
+    all_components_with_fillers = _ensure_unique_nonfunctional_names(all_components_with_fillers)
+    return generator, ring_config, all_components_with_fillers, inner_pads
 
 
 def _import_traceback_if_error() -> str:
     return traceback.format_exc()
 
 
-def run_t180_editor_confirmation_pipeline(
+def run_t28_editor_confirmation_pipeline(
     json_file: str,
     ring_config: Dict[str, Any],
     all_components_with_fillers: List[dict],
     generator: Any,
+    editor_output_path: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Run T180 IO-editor confirmation pipeline and return updated runtime payload."""
+    """Run T28 IO-editor confirmation pipeline and return updated runtime payload."""
     result = {
         "ring_config": ring_config,
         "all_components_with_fillers": all_components_with_fillers,
         "all_instances": all_components_with_fillers,
-        "outer_pads": [c for c in all_components_with_fillers if isinstance(c, dict) and c.get("type") == "pad"],
-        "corners": [c for c in all_components_with_fillers if isinstance(c, dict) and c.get("type") == "corner"],
+        "outer_pads": [
+            c
+            for c in all_components_with_fillers
+            if isinstance(c, dict) and c.get("type") == "pad"
+        ],
+        "corners": [
+            c
+            for c in all_components_with_fillers
+            if isinstance(c, dict) and c.get("type") == "corner"
+        ],
         "editor_path": None,
         "editor_payload": None,
     }
 
     try:
         from ..editor_utils import export_to_editor_json
-        from .layout_visualizer import DEVICE_COLORS_180NM as VISUAL_COLORS
+        from .layout_visualizer import DEVICE_COLORS as VISUAL_COLORS
 
         json_path = Path(json_file)
-        editor_path = json_path.parent / f"{json_path.stem}_intermediate_editor.json"
-        confirmed_path = json_path.parent / f"{json_path.stem}_confirmed.json"
+        if editor_output_path:
+            editor_path = Path(editor_output_path)
+            if editor_path.suffix.lower() != ".json":
+                editor_path = editor_path.with_suffix(".json")
+        else:
+            editor_path = json_path.parent / f"{json_path.stem}_intermediate_editor.json"
 
         print(f"💾 Exporting intermediate layout for Editor validation: {editor_path}")
         exported_path = export_to_editor_json(
@@ -187,6 +202,11 @@ def run_t180_editor_confirmation_pipeline(
             str(editor_path),
         )
         editor_path = Path(exported_path)
+
+        # Wait for confirmation next to the exported intermediate JSON.
+        # This keeps polling path consistent with /api/agent/editor/confirm write path.
+        confirmed_path = editor_path.with_name(f"{json_path.stem}_confirmed.json")
+
         initial_confirmed_mtime = (
             confirmed_path.stat().st_mtime if confirmed_path.exists() else 0
         )
@@ -212,8 +232,10 @@ def run_t180_editor_confirmation_pipeline(
         if "ring_config" in idx_data:
             print("   Updating ring configuration from editor...")
             ring_config.update(idx_data["ring_config"])
+            ring_config["process_node"] = "T28"
             if hasattr(generator, "config"):
                 generator.config.update(idx_data["ring_config"])
+                generator.config["process_node"] = "T28"
 
         incoming_components = None
         if "layout_data" in idx_data:
@@ -222,7 +244,9 @@ def run_t180_editor_confirmation_pipeline(
             incoming_components = idx_data["instances"]
 
         if incoming_components is not None:
-            print(f"   Updating layout components from editor ({len(incoming_components)} items)...")
+            print(
+                f"   Updating layout components from editor ({len(incoming_components)} items)..."
+            )
             result["all_components_with_fillers"] = incoming_components
             result["all_instances"] = incoming_components
 
@@ -261,25 +285,31 @@ def build_confirmed_config_from_io_config(
     if source_path.suffix.lower() != ".json":
         raise ValueError(f"Invalid JSON file: {source_json_path}")
 
-    generator, _, _, _, ring_config, all_components_with_fillers, _ = _prepare_t180_components(str(source_path))
-
-    pipeline_result = run_t180_editor_confirmation_pipeline(
-        json_file=str(source_path),
-        ring_config=ring_config,
-        all_components_with_fillers=all_components_with_fillers,
-        generator=generator,
-    )
-
-    editor_payload = pipeline_result.get("editor_payload")
-    if not isinstance(editor_payload, dict):
-        raise RuntimeError("Editor confirmation payload not available")
-
     if confirmed_output_path:
         confirmed_path = Path(confirmed_output_path)
         if confirmed_path.suffix.lower() != ".json":
             confirmed_path = confirmed_path.with_suffix(".json")
     else:
         confirmed_path = source_path.with_name(f"{source_path.stem}_confirmed.json")
+
+    intermediate_path = confirmed_path.with_name(f"{source_path.stem}_intermediate_editor.json")
+
+    generator, ring_config, all_components_with_fillers, _ = _prepare_t28_components(str(source_path))
+
+    pipeline_result = run_t28_editor_confirmation_pipeline(
+        json_file=str(source_path),
+        ring_config=ring_config,
+        all_components_with_fillers=all_components_with_fillers,
+        generator=generator,
+        editor_output_path=str(intermediate_path),
+    )
+
+    editor_payload = pipeline_result.get("editor_payload")
+    if not isinstance(editor_payload, dict):
+        raise RuntimeError("Editor confirmation payload not available")
+
+    if isinstance(editor_payload.get("ring_config"), dict):
+        editor_payload["ring_config"]["process_node"] = "T28"
 
     confirmed_path.parent.mkdir(parents=True, exist_ok=True)
     with open(confirmed_path, "w", encoding="utf-8") as f:

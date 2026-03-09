@@ -290,7 +290,58 @@ def get_io_ring_editor_html(initial_json: dict = None) -> str:
                     this.scale = Math.min(sX, sY, 0.8); 
                     if (this.scale < 0.1) this.scale = 0.1;
 
+                    this.syncRingConfigFromInstances();
+
                     this.render();
+
+                    // Persist normalized ring_config immediately so confirm/save works
+                    // even when user does not perform any extra interactions.
+                    setTimeout(() => this.pushToPython(), 0);
+                },
+
+                syncRingConfigFromInstances: function() {
+                    const sideMax = { top: -1, right: -1, bottom: -1, left: -1 };
+
+                    this.instances.forEach((item) => {
+                        if (!item) return;
+                        const t = (item.type || '').toLowerCase();
+                        if (t !== 'pad' && t !== 'inner_pad') return;
+                        const pos = item.position;
+                        if (typeof pos !== 'string') return;
+                        const parts = pos.split('_');
+                        if (parts.length !== 2) return;
+                        const side = parts[0];
+                        const idx = parseInt(parts[1], 10);
+                        if (!(side in sideMax) || Number.isNaN(idx) || idx < 0) return;
+                        if (idx > sideMax[side]) sideMax[side] = idx;
+                    });
+
+                    const topCount = sideMax.top >= 0 ? sideMax.top + 1 : 0;
+                    const bottomCount = sideMax.bottom >= 0 ? sideMax.bottom + 1 : 0;
+                    const leftCount = sideMax.left >= 0 ? sideMax.left + 1 : 0;
+                    const rightCount = sideMax.right >= 0 ? sideMax.right + 1 : 0;
+
+                    const width = Math.max(topCount, bottomCount, 1);
+                    const height = Math.max(leftCount, rightCount, 1);
+
+                    this.config.width = width;
+                    this.config.height = height;
+                    this.config.top_count = width;
+                    this.config.bottom_count = width;
+                    this.config.left_count = height;
+                    this.config.right_count = height;
+
+                    const padSpacing = parseFloat(this.config.pad_spacing) || this.padSpacing || 90;
+                    const cornerSize = parseFloat(this.config.corner_size) || this.cornerS || 130;
+                    const chipWidth = width * padSpacing + cornerSize * 2;
+                    const chipHeight = height * padSpacing + cornerSize * 2;
+
+                    this.config.chip_width = chipWidth;
+                    this.config.chip_height = chipHeight;
+                    this.chipW = chipWidth;
+                    this.chipH = chipHeight;
+                    this.padSpacing = padSpacing;
+                    this.cornerS = cornerSize;
                 },
 
                 calculateGeometry: function() {
@@ -573,10 +624,12 @@ def get_io_ring_editor_html(initial_json: dict = None) -> str:
                             item.position = `${side}_${idx}`;
                         });
                     });
+                    this.syncRingConfigFromInstances();
                     this.render();
                 },
 
                 pushToPython: function() {
+                    this.syncRingConfigFromInstances();
                     const data = {
                         ring_config: this.config,
                         instances: this.instances

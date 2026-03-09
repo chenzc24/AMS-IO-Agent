@@ -256,7 +256,7 @@ class SkillGeneratorT180:
         for pad in digital_io_pads:
             x, y = pad["position"]
             orient = pad["orientation"]
-            is_input = pad["io_direction"] == "input"
+            is_input = pad["direction"] == "input"
 
             # Step 1: orientation-specific geometric preprocessing
             def get_wire_endpoint_geometry(orientation: str, end_config: str, pin_offset: float):

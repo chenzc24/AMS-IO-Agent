@@ -160,23 +160,6 @@ class AutoFillerGeneratorT180:
                 "left": "R270",
             }.get(side, "")
 
-        def sort_key_for_orientation(pad: dict, orientation: str):
-            pos = pad.get("position", [0, 0])
-            if isinstance(pos, list) and len(pos) >= 2:
-                x, y = pos[0], pos[1]
-            else:
-                x, y = 0, 0
-
-            if orientation == "R180":
-                return x
-            if orientation == "R0":
-                return -x
-            if orientation == "R90":
-                return -y
-            if orientation == "R270":
-                return y
-            return 0
-
         def parse_relative_position(value):
             if not isinstance(value, str):
                 return None, None
@@ -224,8 +207,6 @@ class AutoFillerGeneratorT180:
                 pad_list,
                 key=lambda p: (
                     parse_relative_position(p.get("position"))[1]
-                    if parse_relative_position(p.get("position"))[1] is not None
-                    else sort_key_for_orientation(p, orientation)
                 ),
             )
 

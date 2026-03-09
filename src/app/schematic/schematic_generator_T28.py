@@ -60,6 +60,45 @@ class SchematicGenerator:
             return f"{prefix}_{suffix}<{index}>"  # e.g., "D_CORE<0>"
         # If pattern doesn't match, return as is (may already be in correct format or no brackets)
         return label
+
+    def _parse_position_for_order(self, position_desc: Any) -> tuple[str | None, int, int]:
+        if not isinstance(position_desc, str):
+            return None, 10**9, 10**9
+
+        if position_desc in {"top_left", "top_right", "bottom_left", "bottom_right"}:
+            return None, 10**9, 10**9
+
+        parts = position_desc.split("_")
+        if len(parts) >= 2 and parts[0] in {"top", "right", "bottom", "left"} and parts[1].isdigit():
+            side = parts[0]
+            idx1 = int(parts[1])
+            idx2 = int(parts[2]) if len(parts) >= 3 and parts[2].isdigit() else -1
+            return side, idx1, idx2
+
+        return None, 10**9, 10**9
+
+    def _is_schematic_consumable_instance(self, inst: dict) -> bool:
+        inst_type = str(inst.get("type", "")).strip().lower()
+        if inst_type in {"pad", "inner_pad"}:
+            return True
+        if inst_type in {"", "instance"}:
+            return True
+        return False
+
+    def _sort_instances_for_schematic(self, instances: list, placement_order: str) -> list:
+        side_order = ["top", "right", "bottom", "left"]
+        if str(placement_order).lower() != "clockwise":
+            side_order = ["left", "bottom", "right", "top"]
+        side_rank = {side: rank for rank, side in enumerate(side_order)}
+
+        decorated = []
+        for index, inst in enumerate(instances):
+            side, idx1, idx2 = self._parse_position_for_order(inst.get("position"))
+            rank = side_rank.get(side, 99)
+            decorated.append((rank, idx1, idx2, index, inst))
+
+        decorated.sort(key=lambda item: (item[0], item[1], item[2], item[3]))
+        return [item[4] for item in decorated]
     
     def get_device_offset(self, device_type: str) -> float:
         """Get offset based on device type and orientation"""
@@ -131,13 +170,9 @@ class SchematicGenerator:
         return outer_pads
     
     def normalize_device_config(self, config: dict) -> dict:
-        """Standardize device configuration, handle field compatibility"""
+        """Standardize device configuration using direction-only schema."""
         if 'position' not in config:
             return config
-        
-        # Handle direction field, compatible with io_direction
-        if 'io_direction' in config and 'direction' not in config:
-            config['direction'] = config['io_direction']
         
         # Handle inner ring pad identification
         if config.get('type') == 'inner_pad':
@@ -526,9 +561,17 @@ class SchematicGenerator:
         for inst in instances:
             normalized_inst = self.normalize_device_config(inst.copy())
             normalized_instances.append(normalized_inst)
+
+        schematic_instances = [
+            inst for inst in normalized_instances if self._is_schematic_consumable_instance(inst)
+        ]
+        schematic_instances = self._sort_instances_for_schematic(
+            schematic_instances,
+            placement_order,
+        )
         
         # Get outer ring pad position information for inner ring pad position calculation
-        outer_pads = self.get_outer_pad_positions(normalized_instances, ring_config)
+        outer_pads = self.get_outer_pad_positions(schematic_instances, ring_config)
         
         commands = []
         commands.append("cv = geGetWindowCellView()")
@@ -536,10 +579,7 @@ class SchematicGenerator:
         loaded_devices = set()
         noConn_loaded = False  # Mark whether noConn component has been loaded
         
-        for inst in normalized_instances:
-            # Skip corner point processing
-            if inst.get('type') == 'corner':
-                continue
+        for inst in schematic_instances:
                 
             device = inst['device']
             template = self.template_manager.get_template(device)
@@ -673,7 +713,7 @@ class SchematicGenerator:
         
         print(f"✅ Successfully generated schematic file: {output_file}")
         print(f"📊 Statistics:")
-        print(f"  - Device instance count: {len(normalized_instances)}")
+        print(f"  - Device instance count: {len(schematic_instances)}")
         print(f"  - Device types used: {', '.join(loaded_devices)}")
         print(f"  - SKILL command count: {len(commands)}")
         
