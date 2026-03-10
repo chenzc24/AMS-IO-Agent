@@ -20,4 +20,4 @@ geSetEditCellView(cvId)
 printf("Cellview opened and set as current edit.\n")
 
 ;; Load the layout IL file
-load("output/turn_20260225_225852/io_ring_layout.il")
+load("output/generated/20260225_225852/io_ring_layout.il")

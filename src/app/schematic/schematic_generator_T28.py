@@ -89,16 +89,47 @@ class SchematicGenerator:
         side_order = ["top", "right", "bottom", "left"]
         if str(placement_order).lower() != "clockwise":
             side_order = ["left", "bottom", "right", "top"]
-        side_rank = {side: rank for rank, side in enumerate(side_order)}
 
-        decorated = []
+        side_items_map = {side: [] for side in ("left", "bottom", "right", "top")}
+        unsorted_items = []
+
         for index, inst in enumerate(instances):
             side, idx1, idx2 = self._parse_position_for_order(inst.get("position"))
-            rank = side_rank.get(side, 99)
-            decorated.append((rank, idx1, idx2, index, inst))
+            if side in side_items_map:
+                side_items_map[side].append((idx1, idx2, index, inst))
+            else:
+                unsorted_items.append((index, inst))
 
-        decorated.sort(key=lambda item: (item[0], item[1], item[2], item[3]))
-        return [item[4] for item in decorated]
+        rebuilt_by_side = {side: [] for side in side_items_map}
+        for side, items in side_items_map.items():
+            # Keep side order from original numeric position, so we can rebuild compact labels.
+            items.sort(key=lambda item: (item[0], item[2], item[1]))
+
+            outer_count = 0
+            for _, _, _, inst in items:
+                inst_out = inst.copy()
+                inst_type = str(inst.get("type", "")).strip().lower()
+
+                if inst_type == "inner_pad":
+                    left_idx = max(outer_count - 1, 0)
+                    right_idx = outer_count
+                    inst_out["position"] = f"{side}_{left_idx}_{right_idx}"
+                else:
+                    inst_out["position"] = f"{side}_{outer_count}"
+                    outer_count += 1
+
+                rebuilt_by_side[side].append(inst_out)
+
+        ordered_instances = []
+        for side in side_order:
+            ordered_instances.extend(rebuilt_by_side[side])
+
+        # Keep non-side items at the tail in their original relative order.
+        if unsorted_items:
+            unsorted_items.sort(key=lambda item: item[0])
+            ordered_instances.extend([item[1] for item in unsorted_items])
+
+        return ordered_instances
     
     def get_device_offset(self, device_type: str) -> float:
         """Get offset based on device type and orientation"""

@@ -139,6 +139,8 @@ app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 OUTPUT_DIR = os.path.join(project_root, "output")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 app.mount("/output", StaticFiles(directory=OUTPUT_DIR), name="output")
+GENERATED_OUTPUT_DIR = os.path.join(OUTPUT_DIR, "generated")
+os.makedirs(GENERATED_OUTPUT_DIR, exist_ok=True)
 
 @app.post("/api/agent/upload")
 async def upload_file(file: UploadFile = File(...)):
@@ -355,22 +357,14 @@ async def confirm_editor_layout(request: EditorConfirmRequest):
             raise HTTPException(status_code=400, detail="source_path is required")
 
         normalized_path = raw_path.lstrip("/")
-        if normalized_path.startswith("output/"):
+        if normalized_path.startswith("output/generated/"):
             target_path = (project_root / normalized_path).resolve()
-        elif normalized_path.startswith("uploads/"):
-            target_path = (project_root / normalized_path).resolve()
-        elif normalized_path.startswith("turn_"):
-            target_path = (Path(OUTPUT_DIR) / normalized_path).resolve()
         else:
-            target_path = (Path(OUTPUT_DIR) / normalized_path).resolve()
+            raise HTTPException(status_code=400, detail="source_path must be inside output/generated/")
 
-        output_root = Path(OUTPUT_DIR).resolve()
-        upload_root = Path(UPLOAD_DIR).resolve()
-        if not (
-            str(target_path).startswith(str(output_root))
-            or str(target_path).startswith(str(upload_root))
-        ):
-            raise HTTPException(status_code=400, detail="source_path must be inside output/ or uploads/")
+        generated_root = Path(GENERATED_OUTPUT_DIR).resolve()
+        if not str(target_path).startswith(str(generated_root)):
+            raise HTTPException(status_code=400, detail="source_path must be inside output/generated/")
 
         target_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -598,17 +592,17 @@ async def agent_chat(request: AgentChatRequest):
          except:
              return {"error": "Agent not initialized"}
          
-    # Create turn-specific working directory
+    # Create timestamp-specific working directory under output/generated
     from datetime import datetime
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    turn_dir_name = f"turn_{timestamp}"
-    turn_dir = os.path.join(OUTPUT_DIR, turn_dir_name)
-    os.makedirs(turn_dir, exist_ok=True)
-    relative_turn_dir = f"output/{turn_dir_name}"
+    generated_dir_name = timestamp
+    generated_dir = os.path.join(GENERATED_OUTPUT_DIR, generated_dir_name)
+    os.makedirs(generated_dir, exist_ok=True)
+    relative_generated_dir = f"output/generated/{generated_dir_name}"
     
     # Inject directory instruction into prompt
     # We append this instruction so the agent knows where to save files for this turn
-    enhanced_prompt = f"{request.prompt}\n\n[SYSTEM INSTRUCTION: Save ALL generated files (images, code, reports) to the directory '{relative_turn_dir}'. Do not use 'output/' root.]"
+    enhanced_prompt = f"{request.prompt}\n\n[SYSTEM INSTRUCTION: Save ALL generated files (images, code, reports) to the directory '{relative_generated_dir}'. Do not use any other output path.]"
 
     async def structured_event_generator():
         response_queue = queue.Queue()
@@ -620,9 +614,7 @@ async def agent_chat(request: AgentChatRequest):
 
         def scan_and_yield_files():
             files_to_send = []
-            # Include full output root so frontend can still detect editor intermediates
-            # even if tools write to a sibling turn directory.
-            scan_roots = [turn_dir, OUTPUT_DIR, UPLOAD_DIR]
+            scan_roots = [generated_dir]
             for scan_root in scan_roots:
                 if not os.path.exists(scan_root):
                     continue
@@ -656,7 +648,7 @@ async def agent_chat(request: AgentChatRequest):
             builtins.input = patched_input
             try:
                 # 1. Yield an "ack" with directory info
-                response_queue.put(format_agent_event("status", f"Starting Agent... (Output Dir: {turn_dir_name})"))
+                response_queue.put(format_agent_event("status", f"Starting Agent... (Output Dir: {relative_generated_dir})"))
                 
                 # Check for existing files first (e.g. from previous turns or externally created)
                 # But actually we are in a new turn dir, so it should be empty.

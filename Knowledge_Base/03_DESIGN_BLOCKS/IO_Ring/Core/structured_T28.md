@@ -82,7 +82,7 @@ Present concise plan summary to user.
 ### Step 3: Tool Calls
 - **MUST run IO-editor confirmed flow first, then generate both schematic and layout** - do NOT ask user which to generate
 - `build_io_ring_confirmed_config`: Build `*_confirmed.json` from intent graph via IO-editor confirmation flow (`process_node="T28"`)
-  - **MUST set `confirmed_output_path` inside current turn timestamp directory** (e.g., `output/turn_YYYYMMDD_HHMMSS/{intent_stem}_confirmed.json`)
+  - **MUST set `confirmed_output_path` inside current timestamp directory under `output/generated/`** (e.g., `output/generated/YYYYMMDD_HHMMSS/{intent_stem}_confirmed.json`)
   - Intermediate editor JSON will be generated in the same timestamp directory (`{intent_stem}_intermediate_editor.json`)
 - `generate_io_ring_schematic`: Generate schematic SKILL code from confirmed JSON (`process_node="T28"`, `consume_confirmed_only=True`)
 - `generate_io_ring_layout`: Generate layout SKILL code from confirmed JSON (`process_node="T28"`, `consume_confirmed_only=True`)

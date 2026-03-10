@@ -159,6 +159,7 @@ def run_t180_editor_confirmation_pipeline(
     ring_config: Dict[str, Any],
     all_components_with_fillers: List[dict],
     generator: Any,
+    editor_output_path: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Run T180 IO-editor confirmation pipeline and return updated runtime payload."""
     result = {
@@ -176,8 +177,12 @@ def run_t180_editor_confirmation_pipeline(
         from .layout_visualizer import DEVICE_COLORS_180NM as VISUAL_COLORS
 
         json_path = Path(json_file)
-        editor_path = json_path.parent / f"{json_path.stem}_intermediate_editor.json"
-        confirmed_path = json_path.parent / f"{json_path.stem}_confirmed.json"
+        if editor_output_path:
+            editor_path = Path(editor_output_path)
+            if editor_path.suffix.lower() != ".json":
+                editor_path = editor_path.with_suffix(".json")
+        else:
+            editor_path = json_path.parent / f"{json_path.stem}_intermediate_editor.json"
 
         print(f"💾 Exporting intermediate layout for Editor validation: {editor_path}")
         exported_path = export_to_editor_json(
@@ -187,6 +192,9 @@ def run_t180_editor_confirmation_pipeline(
             str(editor_path),
         )
         editor_path = Path(exported_path)
+        # Wait for confirmation next to the exported intermediate JSON so
+        # backend polling path matches /api/agent/editor/confirm write path.
+        confirmed_path = editor_path.with_name(f"{json_path.stem}_confirmed.json")
         initial_confirmed_mtime = (
             confirmed_path.stat().st_mtime if confirmed_path.exists() else 0
         )
@@ -261,6 +269,15 @@ def build_confirmed_config_from_io_config(
     if source_path.suffix.lower() != ".json":
         raise ValueError(f"Invalid JSON file: {source_json_path}")
 
+    if confirmed_output_path:
+        confirmed_path = Path(confirmed_output_path)
+        if confirmed_path.suffix.lower() != ".json":
+            confirmed_path = confirmed_path.with_suffix(".json")
+    else:
+        confirmed_path = source_path.with_name(f"{source_path.stem}_confirmed.json")
+
+    intermediate_path = confirmed_path.with_name(f"{source_path.stem}_intermediate_editor.json")
+
     generator, _, _, _, ring_config, all_components_with_fillers, _ = _prepare_t180_components(str(source_path))
 
     pipeline_result = run_t180_editor_confirmation_pipeline(
@@ -268,18 +285,12 @@ def build_confirmed_config_from_io_config(
         ring_config=ring_config,
         all_components_with_fillers=all_components_with_fillers,
         generator=generator,
+        editor_output_path=str(intermediate_path),
     )
 
     editor_payload = pipeline_result.get("editor_payload")
     if not isinstance(editor_payload, dict):
         raise RuntimeError("Editor confirmation payload not available")
-
-    if confirmed_output_path:
-        confirmed_path = Path(confirmed_output_path)
-        if confirmed_path.suffix.lower() != ".json":
-            confirmed_path = confirmed_path.with_suffix(".json")
-    else:
-        confirmed_path = source_path.with_name(f"{source_path.stem}_confirmed.json")
 
     confirmed_path.parent.mkdir(parents=True, exist_ok=True)
     with open(confirmed_path, "w", encoding="utf-8") as f:

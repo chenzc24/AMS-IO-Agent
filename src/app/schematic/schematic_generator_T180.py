@@ -89,16 +89,30 @@ class SchematicGenerator:
         side_order = ["top", "right", "bottom", "left"]
         if str(placement_order).lower() != "clockwise":
             side_order = ["left", "bottom", "right", "top"]
-        side_rank = {side: rank for rank, side in enumerate(side_order)}
 
-        decorated = []
+        side_items = {side: [] for side in ("left", "bottom", "right", "top")}
+        unsorted_items = []
+
         for index, inst in enumerate(instances):
-            side, idx1, idx2 = self._parse_position_for_order(inst.get("position"))
-            rank = side_rank.get(side, 99)
-            decorated.append((rank, idx1, idx2, index, inst))
+            side, idx1, _ = self._parse_position_for_order(inst.get("position"))
+            if side in side_items:
+                side_items[side].append((idx1, index, inst))
+            else:
+                unsorted_items.append((index, inst))
 
-        decorated.sort(key=lambda item: (item[0], item[1], item[2], item[3]))
-        return [item[4] for item in decorated]
+        ordered = []
+        for side in side_order:
+            side_items[side].sort(key=lambda item: (item[0], item[1]))
+            for new_idx, (_, _, inst) in enumerate(side_items[side]):
+                inst_out = inst.copy()
+                inst_out["position"] = f"{side}_{new_idx}"
+                ordered.append(inst_out)
+
+        # Keep unknown/non-side positions at the end in original order.
+        unsorted_items.sort(key=lambda item: item[0])
+        ordered.extend([item[1] for item in unsorted_items])
+
+        return ordered
     
     def get_device_offset(self, device_type: str) -> float:
         """Get offset based on device type and orientation (180nm process node)

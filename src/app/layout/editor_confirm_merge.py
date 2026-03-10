@@ -444,32 +444,16 @@ def build_confirmed_payload(source_payload: dict, editor_payload: dict) -> dict:
 
 
 def resolve_source_intent_path(target_path: Path) -> Optional[Path]:
-    def _resolve_fallback_in_uploads(origin_name: str) -> Optional[Path]:
-        for ancestor in target_path.parents:
-            if ancestor.name == "output":
-                project_root = ancestor.parent
-                upload_candidate = project_root / "uploads" / origin_name
-                if upload_candidate.exists():
-                    return upload_candidate
-                break
-        return None
-
     if target_path.name.endswith("_intermediate_editor.json"):
         origin_name = target_path.name.replace("_intermediate_editor.json", ".json")
         origin_path = target_path.with_name(origin_name)
         if origin_path.exists():
             return origin_path
-        fallback_path = _resolve_fallback_in_uploads(origin_name)
-        if fallback_path is not None:
-            return fallback_path
 
     if target_path.name.endswith("_confirmed.json"):
         origin_name = target_path.name.replace("_confirmed.json", ".json")
         origin_path = target_path.with_name(origin_name)
         if origin_path.exists():
             return origin_path
-        fallback_path = _resolve_fallback_in_uploads(origin_name)
-        if fallback_path is not None:
-            return fallback_path
 
     return None

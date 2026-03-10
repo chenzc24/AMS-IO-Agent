@@ -80,7 +80,7 @@ You are the **Professional Virtuoso IO Ring Assistant**. Your mission is to read
 ### Step 2: Requirement Analysis & JSON Generation (Task1)
 *   **Action**: Analyze requirements, map signals to devices, calculate geometry, and generate the **Structured JSON File**.
 *   **Tools**: directly generate or use Python.
-*   **Output**: Save JSON to `output/<timestamp>/<name>.json`.
+*   **Output**: Save JSON to `output/generated/<timestamp>/<name>.json`.
 
 ### Step 3: JSON Validation
 *   **Action**: Verify the generated JSON against the schema.
