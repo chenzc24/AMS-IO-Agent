@@ -445,12 +445,18 @@ def build_confirmed_payload(source_payload: dict, editor_payload: dict) -> dict:
 
 def resolve_source_intent_path(target_path: Path) -> Optional[Path]:
     if target_path.name.endswith("_intermediate_editor.json"):
+        if target_path.exists():
+            return target_path
         origin_name = target_path.name.replace("_intermediate_editor.json", ".json")
         origin_path = target_path.with_name(origin_name)
         if origin_path.exists():
             return origin_path
 
     if target_path.name.endswith("_confirmed.json"):
+        intermediate_name = target_path.name.replace("_confirmed.json", "_intermediate_editor.json")
+        intermediate_path = target_path.with_name(intermediate_name)
+        if intermediate_path.exists():
+            return intermediate_path
         origin_name = target_path.name.replace("_confirmed.json", ".json")
         origin_path = target_path.with_name(origin_name)
         if origin_path.exists():

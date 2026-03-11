@@ -301,3 +301,41 @@ def test_duplicate_name_device_type_kept_by_position():
 
     assert len(gi) == 2
     assert {x.get("position") for x in gi} == {"bottom_13", "top_3"}
+
+
+def test_resolve_source_intent_path_falls_back_to_intermediate(tmp_path):
+    intermediate = tmp_path / "sample_intermediate_editor.json"
+    intermediate.write_text('{"ring_config": {"process_node": "T180"}, "instances": []}', encoding="utf-8")
+
+    resolved = merge_logic.resolve_source_intent_path(intermediate)
+    assert resolved == intermediate
+
+
+def test_resolve_source_intent_path_confirmed_prefers_intermediate(tmp_path):
+    confirmed = tmp_path / "sample_confirmed.json"
+    intermediate = tmp_path / "sample_intermediate_editor.json"
+    intermediate.write_text('{"ring_config": {"process_node": "T180"}, "instances": []}', encoding="utf-8")
+
+    resolved = merge_logic.resolve_source_intent_path(confirmed)
+    assert resolved == intermediate
+
+
+def test_resolve_source_intent_path_intermediate_preferred_over_origin(tmp_path):
+    intermediate = tmp_path / "sample_intermediate_editor.json"
+    origin = tmp_path / "sample.json"
+    intermediate.write_text('{"ring_config": {"process_node": "T180"}, "instances": []}', encoding="utf-8")
+    origin.write_text('{"ring_config": {"process_node": "T180"}, "instances": [{"id": "src"}]}', encoding="utf-8")
+
+    resolved = merge_logic.resolve_source_intent_path(intermediate)
+    assert resolved == intermediate
+
+
+def test_resolve_source_intent_path_confirmed_prefers_intermediate_over_origin(tmp_path):
+    confirmed = tmp_path / "sample_confirmed.json"
+    intermediate = tmp_path / "sample_intermediate_editor.json"
+    origin = tmp_path / "sample.json"
+    intermediate.write_text('{"ring_config": {"process_node": "T180"}, "instances": []}', encoding="utf-8")
+    origin.write_text('{"ring_config": {"process_node": "T180"}, "instances": [{"id": "src"}]}', encoding="utf-8")
+
+    resolved = merge_logic.resolve_source_intent_path(confirmed)
+    assert resolved == intermediate

@@ -608,13 +608,14 @@ async def agent_chat(request: AgentChatRequest):
         response_queue = queue.Queue()
         input_manager.set_response_queue(response_queue)
         run_started_at = time.time()
-        
-        # Track sent files to avoid duplicates
-        sent_files = set()
+        run_started_epoch_sec = int(run_started_at)
+
+        # Track emitted file versions so updated files can be re-emitted.
+        sent_file_versions = {}
 
         def scan_and_yield_files():
             files_to_send = []
-            scan_roots = [generated_dir]
+            scan_roots = [generated_dir, GENERATED_OUTPUT_DIR]
             for scan_root in scan_roots:
                 if not os.path.exists(scan_root):
                     continue
@@ -622,23 +623,49 @@ async def agent_chat(request: AgentChatRequest):
                 for root, dirs, files in os.walk(scan_root):
                     for file in files:
                         file_abs_path = os.path.join(root, file)
-                        if file_abs_path in sent_files:
-                            continue
-
                         try:
-                            mtime = os.path.getmtime(file_abs_path)
+                            stat_result = os.stat(file_abs_path)
+                            mtime = stat_result.st_mtime
+                            mtime_ns = stat_result.st_mtime_ns
+                            size = stat_result.st_size
                         except OSError:
                             continue
 
-                        if mtime < run_started_at:
+                        last_version = sent_file_versions.get(file_abs_path)
+                        # Use nanosecond precision to catch rapid same-path rewrites.
+                        current_version = (mtime_ns, size)
+                        is_current_turn = os.path.commonpath([file_abs_path, generated_dir]) == generated_dir
+
+                        # Skip old historical files on first sighting to avoid flooding events.
+                        # Do not filter current-turn files, and use second-level boundary for
+                        # non-current-turn paths to avoid same-second false negatives.
+                        if (
+                            last_version is None
+                            and (not is_current_turn)
+                            and mtime < run_started_epoch_sec
+                        ):
                             continue
 
-                        sent_files.add(file_abs_path)
+                        if last_version == current_version:
+                            continue
+
+                        sent_file_versions[file_abs_path] = current_version
                         file_rel_path = os.path.relpath(file_abs_path, project_root)
+                        rel_parts = file_rel_path.split(os.sep)
+                        detected_turn_dir = None
+                        if len(rel_parts) >= 3 and rel_parts[0] == "output" and rel_parts[1] == "generated":
+                            detected_turn_dir = "/".join(rel_parts[:3])
+
                         files_to_send.append({
                             "name": file,
                             "path": file_rel_path,
-                            "url": f"/{file_rel_path}"
+                            "url": f"/{file_rel_path}",
+                            "mtime": mtime,
+                            "mtime_ns": mtime_ns,
+                            "size": size,
+                            "event_id": str(uuid.uuid4()),
+                            "source_turn_dir": detected_turn_dir,
+                            "is_current_turn": is_current_turn,
                         })
             return files_to_send
 

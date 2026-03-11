@@ -205,7 +205,10 @@ def run_t28_editor_confirmation_pipeline(
 
         # Wait for confirmation next to the exported intermediate JSON.
         # This keeps polling path consistent with /api/agent/editor/confirm write path.
-        confirmed_path = editor_path.with_name(f"{json_path.stem}_confirmed.json")
+        editor_stem = editor_path.stem
+        if editor_stem.endswith("_intermediate_editor"):
+            editor_stem = editor_stem[: -len("_intermediate_editor")]
+        confirmed_path = editor_path.with_name(f"{editor_stem}_confirmed.json")
 
         initial_confirmed_mtime = (
             confirmed_path.stat().st_mtime if confirmed_path.exists() else 0
@@ -292,7 +295,10 @@ def build_confirmed_config_from_io_config(
     else:
         confirmed_path = source_path.with_name(f"{source_path.stem}_confirmed.json")
 
-    intermediate_path = confirmed_path.with_name(f"{source_path.stem}_intermediate_editor.json")
+    output_stem = confirmed_path.stem
+    if output_stem.endswith("_confirmed"):
+        output_stem = output_stem[: -len("_confirmed")]
+    intermediate_path = confirmed_path.with_name(f"{output_stem}_intermediate_editor.json")
 
     generator, ring_config, all_components_with_fillers, _ = _prepare_t28_components(str(source_path))
 
