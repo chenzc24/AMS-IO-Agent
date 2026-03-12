@@ -60,14 +60,14 @@ class ThreadSafeInputManager:
         logger.info(f"Agent requested input with prompt: {prompt}")
         self.is_waiting = True
         self.pending_prompt = prompt
-        
+
         # Notify Frontend via SSE
         if self.response_queue:
             self.response_queue.put(InputRequest(prompt))
-        
+
         # Wait for API to provide input
         self.input_event.wait()
-        
+
         # Reset
         self.input_event.clear()
         self.is_waiting = False
@@ -84,8 +84,64 @@ class ThreadSafeInputManager:
         self.input_event.set()
         return True
 
+
+class RunControl:
+    """Per-run pause/resume coordination for the streaming worker."""
+
+    def __init__(self, run_id: str):
+        self.run_id = run_id
+        self._pause_requested = False
+        self._is_paused = False
+        self._resume_event = threading.Event()
+        self._resume_value = ""
+        self._lock = threading.Lock()
+
+    def request_pause(self) -> bool:
+        with self._lock:
+            if self._is_paused:
+                return False
+            self._pause_requested = True
+            return True
+
+    def consume_pause_request(self) -> bool:
+        with self._lock:
+            should_pause = self._pause_requested
+            if should_pause:
+                self._pause_requested = False
+                self._is_paused = True
+                self._resume_value = ""
+                self._resume_event.clear()
+            return should_pause
+
+    def wait_for_resume(self) -> str:
+        self._resume_event.wait()
+        with self._lock:
+            value = self._resume_value
+            self._resume_value = ""
+            self._is_paused = False
+            self._resume_event.clear()
+            return value
+
+    def resume(self, value: str) -> bool:
+        with self._lock:
+            if not self._is_paused:
+                return False
+            self._resume_value = value
+            self._resume_event.set()
+            return True
+
+    def status(self) -> str:
+        with self._lock:
+            if self._is_paused:
+                return "paused"
+            if self._pause_requested:
+                return "pause_requested"
+            return "running"
+
 # Global Singletons
 input_manager = ThreadSafeInputManager()
+run_controls = {}
+run_controls_lock = threading.Lock()
 # Patched input function
 original_input = builtins.input
 
@@ -219,12 +275,17 @@ class InputSubmission(BaseModel):
     """Payload for submitting input to the paused agent"""
     value: str
 
+
+class RunResumeSubmission(BaseModel):
+    value: str = ""
+
 # [ADDED] - PHASE 1: New Agent Chat Request Schema
 class AgentChatRequest(BaseModel):
     prompt: str
     stream: bool = True
     reset_memory: bool = False
     files: List[str] = []  # List of file paths or contents if needed
+    run_id: Optional[str] = None
 
 
 class EditorConfirmRequest(BaseModel):
@@ -346,6 +407,34 @@ async def submit_input(submission: InputSubmission):
     else:
         logger.warning("Received input submission but agent was not waiting.")
         raise HTTPException(status_code=400, detail="Agent is not waiting for input.")
+
+
+@app.post("/api/agent/runs/{run_id}/pause")
+async def pause_run(run_id: str):
+    """Request pausing a running stream. Pause takes effect at the next safe step boundary."""
+    with run_controls_lock:
+        run_control = run_controls.get(run_id)
+
+    if not run_control:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    run_control.request_pause()
+    return {"status": "ok", "run_id": run_id, "state": run_control.status()}
+
+
+@app.post("/api/agent/runs/{run_id}/resume")
+async def resume_run(run_id: str, submission: RunResumeSubmission):
+    """Resume a paused stream with optional user guidance text."""
+    with run_controls_lock:
+        run_control = run_controls.get(run_id)
+
+    if not run_control:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    if not run_control.resume(submission.value):
+        raise HTTPException(status_code=400, detail="Run is not paused")
+
+    return {"status": "ok", "run_id": run_id}
 
 
 @app.post("/api/agent/editor/confirm")
@@ -592,6 +681,11 @@ async def agent_chat(request: AgentChatRequest):
          except:
              return {"error": "Agent not initialized"}
          
+    run_id = (request.run_id or str(uuid.uuid4())).strip()
+    run_control = RunControl(run_id)
+    with run_controls_lock:
+        run_controls[run_id] = run_control
+
     # Create timestamp-specific working directory under output/generated
     from datetime import datetime
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -674,18 +768,40 @@ async def agent_chat(request: AgentChatRequest):
             # Patch input
             builtins.input = patched_input
             try:
-                # 1. Yield an "ack" with directory info
+                # 1. Yield run metadata so frontend can control pause/resume deterministically.
+                response_queue.put(format_agent_event("run_started", {
+                    "run_id": run_id,
+                    "output_dir": relative_generated_dir,
+                }))
                 response_queue.put(format_agent_event("status", f"Starting Agent... (Output Dir: {relative_generated_dir})"))
                 
                 # Check for existing files first (e.g. from previous turns or externally created)
                 # But actually we are in a new turn dir, so it should be empty.
                 pass 
                 
-                # 2. Run Agent
-                for step in agent_instance.run(enhanced_prompt, stream=True, reset=request.reset_memory):
-                    response_queue.put(step)
-                    # Force yield a scan check after each step
-                    response_queue.put("CHECK_FILES")
+                # 2. Run Agent, support pause->resume continuation via follow-up prompt.
+                current_prompt = enhanced_prompt
+                reset_memory = request.reset_memory
+
+                while True:
+                    resume_prompt = None
+                    for step in agent_instance.run(current_prompt, stream=True, reset=reset_memory):
+                        response_queue.put(step)
+                        # Force yield a scan check after each step
+                        response_queue.put("CHECK_FILES")
+
+                        if run_control.consume_pause_request():
+                            response_queue.put(format_agent_event("paused", {"run_id": run_id}))
+                            resume_prompt = run_control.wait_for_resume()
+                            response_queue.put(format_agent_event("resumed", {"run_id": run_id}))
+                            break
+
+                    if resume_prompt is None:
+                        break
+
+                    current_prompt = resume_prompt
+                    # After first run in a stream, follow-up runs should keep memory context.
+                    reset_memory = False
                 
                 response_queue.put("DONE")
             except Exception as e:
@@ -815,6 +931,9 @@ async def agent_chat(request: AgentChatRequest):
             import traceback
             logger.error(traceback.format_exc())
             yield format_agent_event("agent_error", str(e))
+        finally:
+            with run_controls_lock:
+                run_controls.pop(run_id, None)
 
     return StreamingResponse(structured_event_generator(), media_type="text/event-stream")
 
