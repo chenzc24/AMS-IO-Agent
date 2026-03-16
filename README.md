@@ -124,61 +124,53 @@ python main.py
 
 ```
 AMS-IO-Agent/
-├── main.py                           # Main entry point for agent system
-├── config.yaml                       # Main configuration file (safe to commit)
-├── .env                              # API keys and secrets (gitignored)
+├── main.py                           # Main entry point
+├── api_server.py                     # FastAPI server entry point
+├── config.yaml                       # Main configuration file
 ├── requirements.txt                  # Python dependencies
+├── README.md
 │
 ├── src/                              # Core source code
 │   ├── app/
-│   │   ├── layout/                   # Layout generation components
-│   │   ├── schematic/                # Schematic generation components
-│   │   ├── intent_graph/             # Intent graph processing
-│   │   └── utils/                    # Utilities and agent factories
-│   │
-│   ├── tools/                        # AI agent tools
-│   │   ├── il_runner_tool.py         # Execute SKILL files in Virtuoso
-│   │   ├── drc_runner_tool.py        # Run DRC verification
-│   │   ├── lvs_runner_tool.py        # Run LVS verification
-│   │   ├── pex_runner_tool.py        # Run PEX extraction
-│   │   ├── io_ring_generator_tool.py # Generate IO ring designs
-│   │   ├── knowledge_loader_tool.py  # Dynamic knowledge base loading
-│   │   ├── skill_tools_manager.py    # Manage reusable SKILL tools
-│   │   ├── image_vision_tool.py      # Image analysis and vision
-│   │   ├── user_profile_tool.py      # User profile management
-│   │   ├── health_check_tool.py      # System health diagnostics
-│   │   ├── task_query_tool.py        # Task history query
-│   │   ├── tool_stats_tool.py        # Tool usage statistics
-│   │   ├── python_tool_creator.py    # Python helper tool creator
-│   │   ├── tools_config.yaml         # Tool configuration
-│   │   └── python_helpers/            # Python helper utilities
-│   │
-│   └── scripts/                      # Helper scripts and bridges
-│       ├── ramic_bridge/             # RAMIC bridge for Virtuoso communication
-│       └── calibre/                  # Calibre verification scripts
+│   │   ├── intent_graph/             # Intent graph generation and validation
+│   │   ├── layout/                   # IO ring layout generation
+│   │   ├── schematic/                # IO ring schematic generation
+│   │   └── utils/                    # App-level shared utilities
+│   ├── tools/                        # Agent tools and tool config
+│   │   ├── tools_config.yaml
+│   │   └── python_helpers/
+│   ├── scripts/                      # EDA bridge and verification scripts
+│   │   ├── ramic_bridge/
+│   │   ├── calibre/
+│   │   └── devices/
+│   ├── skill/                        # Reusable Virtuoso SKILL snippets
+│   └── agent_generated/              # Agent-generated Python helpers
 │
-├── Knowledge_Base/                   # Structured design knowledge
-│   ├── 00_META/                      # Knowledge base index and metadata
-│   ├── 01_CORE/                      # Core design principles and workflows
-│   ├── 02_TECHNOLOGY/                # Technology-specific parameters
-│   ├── 03_DESIGN_BLOCKS/             # IO Ring design knowledge
-│   └── 04_ERRORS/                    # Common errors and solutions
+├── Knowledge_Base/                   # Structured design knowledge base
+│   ├── 00_META/
+│   ├── 01_CORE/
+│   ├── 02_TECHNOLOGY/
+│   ├── 03_DESIGN_BLOCKS/
+│   └── 04_ERRORS/
 │
-├── AMS-IO-Bench/                     # Benchmark test suite
-│   ├── 28nm_wirebonding/             # 28nm IO ring test cases
-│   └── 180nm_wirebonding/            # 180nm IO ring test cases
+├── AMS-IO-Bench/                     # Benchmark prompts and scenarios
+│   ├── 28nm_wirebonding/
+│   └── 180nm_wirebonding/
 │
-├── tests/                            # Unit and integration tests
-│   └── run_IO_Ring_batch.py          # Batch IO ring experiment runner
+├── tests/                            # Unit/integration and flow tests
+│   ├── run_IO_Ring_batch.py
+│   ├── test_io_ring_tool.py
+│   ├── test_drc_runner_tool.py
+│   ├── test_lvs_runner_tool.py
+│   ├── test_pex_runner_tool.py
+│   └── ...
 │
-├── setup/                            # Installation and setup scripts
-│   └── setup.csh                     # Main setup script
-│
-├── user_data/                        # User-specific data and profiles
-├── user_prompt/                      # Custom prompt files
-├── output/                           # Generated designs output
-├── logs/                             # Execution logs
-└── docs/                             # Additional documentation
+├── setup/                            # Cross-platform setup scripts
+├── docs/                             # Additional technical docs
+├── user_data/                        # User profiles and per-user artifacts
+├── output/                           # Generated design artifacts
+├── logs/                             # Runtime logs
+└── uploads/                          # Uploaded files for API/Web flows
 ```
 
 ## Core Components
