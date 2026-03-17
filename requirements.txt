@@ -1,23 +1,16 @@
-# AI Assistant Core Dependencies
-smolagents[toolkit]
-smolagents[openai]
-
-# Environment Variable Management
+# Environment Management
 python-dotenv
 
-# Configuration Management
+# Configuration
 pyyaml
 
-# Virtuoso Environment Interaction
+# Virtuoso Integration
 skillbridge
-
-# Optional: Web Interface Support
-smolagents[gradio]
 
 # Data Processing
 openpyxl
 
-# HTTP Requests (for image vision API)
+# HTTP Requests
 requests>=2.28
 
 # Visualization

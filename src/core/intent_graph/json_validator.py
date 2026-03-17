@@ -22,7 +22,7 @@ def validate_config(config: Dict[str, Any]) -> bool:
     
     # Get process node (default to T28 for backward compatibility)
     # Normalize process node (e.g., "180nm" -> "T180")
-    from src.app.layout.device_classifier import _normalize_process_node
+    from src.core.layout.device_classifier import _normalize_process_node
     raw_process_node = ring_config.get('process_node', 'T28')
     try:
         process_node = _normalize_process_node(raw_process_node)
