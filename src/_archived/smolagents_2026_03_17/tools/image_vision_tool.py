@@ -9,8 +9,7 @@ import uuid
 import mimetypes
 from datetime import datetime
 from dotenv import load_dotenv, find_dotenv
-from smolagents import tool
-from .tool_utils import format_tool_logs
+from ..utils.tool_utils import format_tool_logs
 
 
 # Load .env from repository root if present so tests/README env vars are available.
@@ -195,7 +194,6 @@ def _extract_simplified_json(resp_json: Any) -> Optional[Dict[str, Any]]:
     return None
 
 
-@tool
 def analyze_image_path(
     image_path: str,
 ) -> Dict[str, Any]:
@@ -437,7 +435,6 @@ def analyze_image_path(
         return format_tool_logs({"status": "error", "error": "exception", "message": str(e)})
 
 
-@tool
 def analyze_image_b64(
     image_b64: str,
     mime_type: Optional[str] = None,

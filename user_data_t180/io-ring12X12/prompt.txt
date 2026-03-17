@@ -1,0 +1,8 @@
+12 pads per side,T180.Single ring layout. Chip_width = 1350, Chip_height = 1350.
+Order: clockwise through right side, bottom side, left side, top side. 
+Signal names: MCLK CDCKB VDCK GDCK VPID VNID IPPI IPNI VNSC AVSF AGSF CKAZ CKTM CONV RSTM 
+              DOFG CLKO DOTM GIOHD DA14 DA13 DA12 DA11 DA10 DA9 DA8 DA7 DA6 DA5 DA4 DA3 DA2 DA1 DA0 VIOHD 
+              VIOLD GIOLD GIOHD GIOHA AGSC AVSC DVSC DGSC VIOHA GIOHA GIOLA VIOLA VDCKB. 
+library:llm_test
+new cell:test_v10_12X12
+view:layout and schematic.

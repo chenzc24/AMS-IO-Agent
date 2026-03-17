@@ -9,13 +9,11 @@ Quickly check if critical system components are available, without detailed test
 import os
 from pathlib import Path
 from dotenv import load_dotenv
-from smolagents import tool
 
 # Load environment variables from .env file
 load_dotenv()
 
 
-@tool
 def run_health_check() -> str:
     """
     Quick system health check (NOT comprehensive testing).
@@ -186,7 +184,6 @@ def run_health_check() -> str:
     return "\n".join(report)
 
 
-@tool
 def check_virtuoso_connection() -> str:
     """
     Check if Virtuoso connection is available.
@@ -264,7 +261,6 @@ def check_virtuoso_connection() -> str:
     return "\n".join(report)
 
 
-@tool
 def quick_diagnostic() -> str:
     """
     Perform a quick combined diagnostic of system health and Virtuoso connection.

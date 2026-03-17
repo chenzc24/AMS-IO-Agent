@@ -162,8 +162,19 @@ def run_t28_editor_confirmation_pipeline(
     all_components_with_fillers: List[dict],
     generator: Any,
     editor_output_path: Optional[str] = None,
+    skip_editor_confirmation: bool = False,
 ) -> Dict[str, Any]:
-    """Run T28 IO-editor confirmation pipeline and return updated runtime payload."""
+    """Run T28 IO-editor confirmation pipeline and return updated runtime payload.
+
+    Args:
+        json_file: Source JSON config file path
+        ring_config: Ring configuration dict
+        all_components_with_fillers: List of all components with auto-inserted fillers
+        generator: Layout generator instance
+        editor_output_path: Optional path for intermediate editor JSON export
+        skip_editor_confirmation: If True, skip GUI editor wait loop (CLI mode).
+                                  Fillers are still inserted and confirmed JSON is auto-generated.
+    """
     result = {
         "ring_config": ring_config,
         "all_components_with_fillers": all_components_with_fillers,
@@ -182,6 +193,20 @@ def run_t28_editor_confirmation_pipeline(
         "editor_payload": None,
     }
 
+    # CLI mode: auto-generate confirmed JSON without GUI editor wait
+    if skip_editor_confirmation:
+        print(f"🤖 CLI mode: Auto-generating confirmed config (no GUI editor)...")
+        # Use the filler-completed layout as the confirmed payload
+        editor_payload = {
+            "ring_config": ring_config,
+            "instances": all_components_with_fillers,
+        }
+        result["editor_payload"] = editor_payload
+        print(f"✅ Auto-confirmed layout generated with {len(all_components_with_fillers)} components")
+        # Early return - skip export and GUI wait logic
+        return result
+
+    # GUI mode: export intermediate JSON and wait for user confirmation
     try:
         from ..editor_utils import export_to_editor_json
         from .layout_visualizer import DEVICE_COLORS as VISUAL_COLORS
@@ -210,6 +235,7 @@ def run_t28_editor_confirmation_pipeline(
             editor_stem = editor_stem[: -len("_intermediate_editor")]
         confirmed_path = editor_path.with_name(f"{editor_stem}_confirmed.json")
 
+        # GUI mode: wait for user to edit in frontend
         initial_confirmed_mtime = (
             confirmed_path.stat().st_mtime if confirmed_path.exists() else 0
         )
@@ -232,6 +258,7 @@ def run_t28_editor_confirmation_pipeline(
         result["editor_path"] = str(editor_path)
         result["editor_payload"] = idx_data
 
+        # Process editor payload
         if "ring_config" in idx_data:
             print("   Updating ring configuration from editor...")
             ring_config.update(idx_data["ring_config"])
@@ -277,10 +304,17 @@ def run_t28_editor_confirmation_pipeline(
 def build_confirmed_config_from_io_config(
     source_json_path: str,
     confirmed_output_path: Optional[str] = None,
+    skip_editor_confirmation: bool = False,
 ) -> str:
     """Build confirmed config JSON from initial io_config.
 
     Flow: source io_config -> filler completion -> IO editor confirmation -> write *_confirmed.json
+
+    Args:
+        source_json_path: Path to source intent graph JSON
+        confirmed_output_path: Optional output path for confirmed JSON
+        skip_editor_confirmation: If True, skip GUI editor wait (CLI mode).
+                                  Filler insertion still runs; confirmed JSON is auto-generated.
     """
     source_path = Path(source_json_path)
     if not source_path.exists():
@@ -308,6 +342,7 @@ def build_confirmed_config_from_io_config(
         all_components_with_fillers=all_components_with_fillers,
         generator=generator,
         editor_output_path=str(intermediate_path),
+        skip_editor_confirmation=skip_editor_confirmation,
     )
 
     editor_payload = pipeline_result.get("editor_payload")

@@ -8,14 +8,12 @@ Dynamic management of SKILL tool scripts
 import os
 from pathlib import Path
 from typing import List, Dict, Optional
-from smolagents import tool
 from .bridge_utils import rb_exec
 
 # SKILL tools directory - use absolute path based on project root
 _project_root = Path(__file__).parent.parent.parent
 SKILL_TOOLS_DIR = _project_root / "src" / "skill"
 
-@tool
 def list_skill_tools() -> str:
     """
     List all available SKILL tools in skill_tools/ directory.
@@ -56,7 +54,6 @@ def list_skill_tools() -> str:
     except Exception as e:
         return f"❌ Error listing tools: {e}"
 
-@tool
 def run_skill_tool(tool_name: str) -> str:
     """
     Run a specific SKILL tool by name and capture its return value.
@@ -96,7 +93,6 @@ def run_skill_tool(tool_name: str) -> str:
     except Exception as e:
         return f"❌ Error running tool '{tool_name}': {e}"
 
-@tool
 def create_skill_tool(tool_name: str, skill_code: str) -> str:
     """
     Create a new SKILL tool script and make it immediately available.
@@ -132,7 +128,6 @@ def create_skill_tool(tool_name: str, skill_code: str) -> str:
     except Exception as e:
         return f"❌ Error creating tool: {e}"
 
-@tool
 def update_skill_tool(tool_name: str, skill_code: str) -> str:
     """
     Update an existing SKILL tool script. Changes take effect immediately.
@@ -159,7 +154,6 @@ def update_skill_tool(tool_name: str, skill_code: str) -> str:
     except Exception as e:
         return f"❌ Error updating tool: {e}"
 
-@tool
 def delete_skill_tool(tool_name: str) -> str:
     """
     Delete a SKILL tool script.

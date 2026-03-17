@@ -1,0 +1,449 @@
+{
+  "ring_config": {
+    "width": 3,
+    "height": 3,
+    "placement_order": "counterclockwise",
+    "process_node": "T28",
+    "chip_width": 400,
+    "chip_height": 400,
+    "top_count": 3,
+    "bottom_count": 3,
+    "left_count": 3,
+    "right_count": 3,
+    "pad_width": 20,
+    "pad_height": 110,
+    "corner_size": 110,
+    "pad_spacing": 60,
+    "library_name": "tphn28hpcpgv18",
+    "view_name": "layout",
+    "device_masters": {
+      "default_library": "tphn28hpcpgv18",
+      "default_view": "layout",
+      "corner_master": "PCORNERA_G",
+      "pad_master": "PDB3AC_V_G",
+      "pad_library": "PAD",
+      "pad60_master": "PAD60GU",
+      "pad60nu_master": "PAD60NU",
+      "filler_master": "PFILLER20A_G",
+      "separator_master": "PRCUTA_G"
+    }
+  },
+  "instances": [
+    {
+      "name": "RSTN",
+      "device": "PDDW16SDGZ_H_G",
+      "position": "left_1",
+      "type": "pad",
+      "direction": "input",
+      "pin_connection": {
+        "VDD": {
+          "label": "VIOL"
+        },
+        "VSS": {
+          "label": "GIOL"
+        },
+        "VDDPST": {
+          "label": "VIOH"
+        },
+        "VSSPST": {
+          "label": "GIOH"
+        }
+      }
+    },
+    {
+      "name": "SCK",
+      "device": "PDDW16SDGZ_H_G",
+      "position": "left_4",
+      "type": "pad",
+      "direction": "input",
+      "pin_connection": {
+        "VDD": {
+          "label": "VIOL"
+        },
+        "VSS": {
+          "label": "GIOL"
+        },
+        "VDDPST": {
+          "label": "VIOH"
+        },
+        "VSSPST": {
+          "label": "GIOH"
+        }
+      }
+    },
+    {
+      "name": "SDI",
+      "device": "PDDW16SDGZ_H_G",
+      "position": "left_7",
+      "type": "pad",
+      "direction": "input",
+      "pin_connection": {
+        "VDD": {
+          "label": "VIOL"
+        },
+        "VSS": {
+          "label": "GIOL"
+        },
+        "VDDPST": {
+          "label": "VIOH"
+        },
+        "VSSPST": {
+          "label": "GIOH"
+        }
+      }
+    },
+    {
+      "name": "SDO",
+      "device": "PDDW16SDGZ_V_G",
+      "position": "bottom_1",
+      "type": "pad",
+      "direction": "output",
+      "pin_connection": {
+        "VDD": {
+          "label": "VIOL"
+        },
+        "VSS": {
+          "label": "GIOL"
+        },
+        "VDDPST": {
+          "label": "VIOH"
+        },
+        "VSSPST": {
+          "label": "GIOH"
+        }
+      }
+    },
+    {
+      "name": "D4",
+      "device": "PDDW16SDGZ_V_G",
+      "position": "bottom_4",
+      "type": "pad",
+      "direction": "output",
+      "pin_connection": {
+        "VDD": {
+          "label": "VIOL"
+        },
+        "VSS": {
+          "label": "GIOL"
+        },
+        "VDDPST": {
+          "label": "VIOH"
+        },
+        "VSSPST": {
+          "label": "GIOH"
+        }
+      }
+    },
+    {
+      "name": "D3",
+      "device": "PDDW16SDGZ_V_G",
+      "position": "bottom_7",
+      "type": "pad",
+      "direction": "output",
+      "pin_connection": {
+        "VDD": {
+          "label": "VIOL"
+        },
+        "VSS": {
+          "label": "GIOL"
+        },
+        "VDDPST": {
+          "label": "VIOH"
+        },
+        "VSSPST": {
+          "label": "GIOH"
+        }
+      }
+    },
+    {
+      "name": "D2",
+      "device": "PDDW16SDGZ_H_G",
+      "position": "right_1",
+      "type": "pad",
+      "direction": "output",
+      "pin_connection": {
+        "VDD": {
+          "label": "VIOL"
+        },
+        "VSS": {
+          "label": "GIOL"
+        },
+        "VDDPST": {
+          "label": "VIOH"
+        },
+        "VSSPST": {
+          "label": "GIOH"
+        }
+      }
+    },
+    {
+      "name": "D1",
+      "device": "PDDW16SDGZ_H_G",
+      "position": "right_4",
+      "type": "pad",
+      "direction": "output",
+      "pin_connection": {
+        "VDD": {
+          "label": "VIOL"
+        },
+        "VSS": {
+          "label": "GIOL"
+        },
+        "VDDPST": {
+          "label": "VIOH"
+        },
+        "VSSPST": {
+          "label": "GIOH"
+        }
+      }
+    },
+    {
+      "name": "VIOL",
+      "device": "PVDD1DGZ_H_G",
+      "position": "right_7",
+      "type": "pad",
+      "pin_connection": {
+        "VDD": {
+          "label": "VIOL"
+        },
+        "VSS": {
+          "label": "GIOL"
+        },
+        "VDDPST": {
+          "label": "VIOH"
+        },
+        "VSSPST": {
+          "label": "GIOH"
+        }
+      }
+    },
+    {
+      "name": "GIOL",
+      "device": "PVSS1DGZ_V_G",
+      "position": "top_1",
+      "type": "pad",
+      "pin_connection": {
+        "VDD": {
+          "label": "VIOL"
+        },
+        "VSS": {
+          "label": "GIOL"
+        },
+        "VDDPST": {
+          "label": "VIOH"
+        },
+        "VSSPST": {
+          "label": "GIOH"
+        }
+      }
+    },
+    {
+      "name": "VIOH",
+      "device": "PVDD2POC_V_G",
+      "position": "top_4",
+      "type": "pad",
+      "pin_connection": {
+        "VDD": {
+          "label": "VIOL"
+        },
+        "VSS": {
+          "label": "GIOL"
+        },
+        "VDDPST": {
+          "label": "VIOH"
+        },
+        "VSSPST": {
+          "label": "GIOH"
+        }
+      }
+    },
+    {
+      "name": "GIOH",
+      "device": "PVSS2DGZ_V_G",
+      "position": "top_7",
+      "type": "pad",
+      "pin_connection": {
+        "VDD": {
+          "label": "VIOL"
+        },
+        "VSS": {
+          "label": "GIOL"
+        },
+        "VDDPST": {
+          "label": "VIOH"
+        },
+        "VSSPST": {
+          "label": "GIOH"
+        }
+      }
+    },
+    {
+      "name": "CORNER_BL",
+      "device": "PCORNER_G",
+      "position": "bottom_left",
+      "type": "corner"
+    },
+    {
+      "name": "CORNER_BR",
+      "device": "PCORNER_G",
+      "position": "bottom_right",
+      "type": "corner"
+    },
+    {
+      "name": "CORNER_TR",
+      "device": "PCORNER_G",
+      "position": "top_right",
+      "type": "corner"
+    },
+    {
+      "name": "CORNER_TL",
+      "device": "PCORNER_G",
+      "position": "top_left",
+      "type": "corner"
+    },
+    {
+      "type": "filler",
+      "name": "filler_bottom_corner_1",
+      "device": "PFILLER20_G",
+      "position": "bottom_0"
+    },
+    {
+      "type": "filler",
+      "name": "bottom_0_mid_1",
+      "device": "PFILLER20_G",
+      "position": "bottom_2"
+    },
+    {
+      "type": "filler",
+      "name": "bottom_0_mid_2",
+      "device": "PFILLER20_G",
+      "position": "bottom_3"
+    },
+    {
+      "type": "filler",
+      "name": "bottom_1_mid_1",
+      "device": "PFILLER20_G",
+      "position": "bottom_5"
+    },
+    {
+      "type": "filler",
+      "name": "bottom_1_mid_2",
+      "device": "PFILLER20_G",
+      "position": "bottom_6"
+    },
+    {
+      "type": "filler",
+      "name": "filler_bottom_corner_2",
+      "device": "PFILLER20_G",
+      "position": "bottom_8"
+    },
+    {
+      "type": "filler",
+      "name": "filler_right_corner_1",
+      "device": "PFILLER20_G",
+      "position": "right_0"
+    },
+    {
+      "type": "filler",
+      "name": "right_0_mid_1",
+      "device": "PFILLER20_G",
+      "position": "right_2"
+    },
+    {
+      "type": "filler",
+      "name": "right_0_mid_2",
+      "device": "PFILLER20_G",
+      "position": "right_3"
+    },
+    {
+      "type": "filler",
+      "name": "right_1_mid_1",
+      "device": "PFILLER20_G",
+      "position": "right_5"
+    },
+    {
+      "type": "filler",
+      "name": "right_1_mid_2",
+      "device": "PFILLER20_G",
+      "position": "right_6"
+    },
+    {
+      "type": "filler",
+      "name": "filler_right_corner_2",
+      "device": "PFILLER20_G",
+      "position": "right_8"
+    },
+    {
+      "type": "filler",
+      "name": "filler_top_corner_1",
+      "device": "PFILLER20_G",
+      "position": "top_0"
+    },
+    {
+      "type": "filler",
+      "name": "top_0_mid_1",
+      "device": "PFILLER20_G",
+      "position": "top_2"
+    },
+    {
+      "type": "filler",
+      "name": "top_0_mid_2",
+      "device": "PFILLER20_G",
+      "position": "top_3"
+    },
+    {
+      "type": "filler",
+      "name": "top_1_mid_1",
+      "device": "PFILLER20_G",
+      "position": "top_5"
+    },
+    {
+      "type": "filler",
+      "name": "top_1_mid_2",
+      "device": "PFILLER20_G",
+      "position": "top_6"
+    },
+    {
+      "type": "filler",
+      "name": "filler_top_corner_2",
+      "device": "PFILLER20_G",
+      "position": "top_8"
+    },
+    {
+      "type": "filler",
+      "name": "filler_left_corner_1",
+      "device": "PFILLER20_G",
+      "position": "left_0"
+    },
+    {
+      "type": "filler",
+      "name": "left_0_mid_1",
+      "device": "PFILLER20_G",
+      "position": "left_2"
+    },
+    {
+      "type": "filler",
+      "name": "left_0_mid_2",
+      "device": "PFILLER20_G",
+      "position": "left_3"
+    },
+    {
+      "type": "filler",
+      "name": "left_1_mid_1",
+      "device": "PFILLER20_G",
+      "position": "left_5"
+    },
+    {
+      "type": "filler",
+      "name": "left_1_mid_2",
+      "device": "PFILLER20_G",
+      "position": "left_6"
+    },
+    {
+      "type": "filler",
+      "name": "filler_left_corner_2",
+      "device": "PFILLER20_G",
+      "position": "left_8"
+    }
+  ]
+}

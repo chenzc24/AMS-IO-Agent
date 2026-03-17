@@ -95,7 +95,8 @@ def _resolve_confirmed_config_path(config_path: Path, process_node: str, consume
 def build_io_ring_confirmed_config(
     config_file_path: str,
     confirmed_output_path: Optional[str] = None,
-    process_node: str = "T180"
+    process_node: str = "T180",
+    skip_editor_confirmation: bool = False,
 ) -> str:
     """Build confirmed IO config from initial io_config (filler + IO editor confirmation only).
 
@@ -103,6 +104,9 @@ def build_io_ring_confirmed_config(
         config_file_path: Path to the initial intent-graph JSON file.
         confirmed_output_path: Optional output path for the confirmed JSON file.
         process_node: Process node selector (supports "T180" and "T28").
+        skip_editor_confirmation: If True, skip GUI editor wait (CLI mode).
+                                  Filler insertion still runs; confirmed JSON is auto-generated.
+                                  Use this in Claude Code CLI workflows.
 
     Returns:
         String description of confirmation result and generated file path.
@@ -126,11 +130,13 @@ def build_io_ring_confirmed_config(
             confirmed_path = build_confirmed_config_from_io_config_t180(
                 source_json_path=str(config_path),
                 confirmed_output_path=confirmed_output_path,
+                skip_editor_confirmation=skip_editor_confirmation,
             )
         elif process_node == "T28":
             confirmed_path = build_confirmed_config_from_io_config_t28(
                 source_json_path=str(config_path),
                 confirmed_output_path=confirmed_output_path,
+                skip_editor_confirmation=skip_editor_confirmation,
             )
         else:
             return _emit_tool_output(
