@@ -752,40 +752,106 @@ class SchematicGenerator:
 
 def load_templates_from_json(json_file=None):
     """Load device templates from JSON file for 28nm process node
-    
+
     Args:
         json_file: Optional specific JSON file path. If None, will search for 28nm template files
     """
-    # If json_file is provided, use it directly
+    possible_files = []
+
+    # Priority 1: If json_file is provided and absolute, use it directly
+    if json_file and os.path.isabs(json_file):
+        possible_files.append(json_file)
+
+    # Priority 2: Check AMS_IO_AGENT_PATH environment variable
+    ams_agent_path = os.environ.get("AMS_IO_AGENT_PATH")
+    if ams_agent_path:
+        ams_agent_base = Path(ams_agent_path)
+        if json_file:
+            possible_files.extend([
+                str(ams_agent_base / json_file),
+                str(ams_agent_base / "src" / "schematic" / json_file),
+                str(ams_agent_base / "src" / "scripts" / "devices" / json_file),
+            ])
+        else:
+            possible_files.extend([
+                str(ams_agent_base / "device_templates.json"),
+                str(ams_agent_base / "src" / "app" / "schematic" / "device_templates.json"),
+                str(ams_agent_base / "src" / "schematic" / "device_templates.json"),
+                str(ams_agent_base / "src" / "scripts" / "devices" / "device_templates.json"),
+                str(ams_agent_base / "IO_device_info_T28.json"),
+                str(ams_agent_base / "src" / "app" / "schematic" / "IO_device_info_T28.json"),
+                str(ams_agent_base / "src" / "schematic" / "IO_device_info_T28.json"),
+                str(ams_agent_base / "src" / "scripts" / "devices" / "IO_device_info_T28.json"),
+            ])
+
+    # Priority 3: Search relative to this script file
+    script_dir = Path(__file__).resolve().parent  # src/core/schematic/
+    ams_agent_base = script_dir.parent.parent  # Go up to AMS-IO-Agent root
+
     if json_file:
-        possible_files = [
-            json_file,  # Original filename
-            os.path.join("src", "schematic", json_file),  # src/schematic directory
-            os.path.join("src", "scripts", "devices", json_file),  # src/scripts/devices directory
-        ]
+        possible_files.extend([
+            str(ams_agent_base / json_file),
+            str(ams_agent_base / "src" / "schematic" / json_file),
+            str(ams_agent_base / "src" / "scripts" / "devices" / json_file),
+        ])
     else:
-        # Search for 28nm template files
-        possible_files = [
+        possible_files.extend([
+            str(ams_agent_base / "device_templates.json"),
+            str(ams_agent_base / "src" / "app" / "schematic" / "device_templates.json"),
+            str(ams_agent_base / "src" / "schematic" / "device_templates.json"),
+            str(ams_agent_base / "src" / "scripts" / "devices" / "device_templates.json"),
+            str(ams_agent_base / "IO_device_info_T28.json"),
+            str(ams_agent_base / "src" / "app" / "schematic" / "IO_device_info_T28.json"),
+            str(ams_agent_base / "src" / "schematic" / "IO_device_info_T28.json"),
+            str(ams_agent_base / "src" / "scripts" / "devices" / "IO_device_info_T28.json"),
+        ])
+
+    # Priority 4: Search relative to current working directory (backward compatibility)
+    if json_file:
+        possible_files.extend([
+            json_file,
+            os.path.join("src", "schematic", json_file),
+            os.path.join("src", "scripts", "devices", json_file),
+        ])
+    else:
+        possible_files.extend([
             "device_templates.json",
             os.path.join("src", "app", "schematic", "device_templates.json"),
-            os.path.join("src", "schematic", "device_templates.json"),  # src/schematic directory
-            os.path.join("src", "scripts", "devices", "device_templates.json"),  # src/scripts/devices directory
+            os.path.join("src", "schematic", "device_templates.json"),
+            os.path.join("src", "scripts", "devices", "device_templates.json"),
             "IO_device_info_T28.json",
             os.path.join("src", "app", "schematic", "IO_device_info_T28.json"),
             os.path.join("src", "schematic", "IO_device_info_T28.json"),
             os.path.join("src", "scripts", "devices", "IO_device_info_T28.json"),
-        ]
-    
+        ])
+
+    # Find first existing file
     json_file = None
     for file_path in possible_files:
         if os.path.exists(file_path):
             json_file = file_path
             break
-    
+
     if json_file is None:
-        raise FileNotFoundError(
-            f"Device template file not found for 28nm process node. Tried: {', '.join(possible_files)}"
-        )
+        # Create helpful error message
+        error_msg = f"Device template file not found for 28nm process node.\n\n"
+        error_msg += f"Current working directory: {os.getcwd()}\n"
+        if ams_agent_path:
+            error_msg += f"AMS_IO_AGENT_PATH: {ams_agent_path}\n"
+        else:
+            error_msg += f"AMS_IO_AGENT_PATH: Not set (consider setting this environment variable)\n"
+        error_msg += f"Script location: {Path(__file__).resolve()}\n"
+        error_msg += f"Searched {len(possible_files)} locations (showing unique paths):\n"
+        unique_paths = list(dict.fromkeys(possible_files))  # Remove duplicates while preserving order
+        for i, path in enumerate(unique_paths[:10], 1):  # Show first 10
+            error_msg += f"  {i}. {path}\n"
+        if len(unique_paths) > 10:
+            error_msg += f"  ... and {len(unique_paths) - 10} more\n"
+        error_msg += f"\n💡 Suggestions:\n"
+        error_msg += f"  1. Set AMS_IO_AGENT_PATH environment variable to AMS-IO-Agent directory\n"
+        error_msg += f"  2. Run from AMS-IO-Agent directory (cd AMS-IO-Agent)\n"
+        error_msg += f"  3. Provide absolute path to template file\n"
+        raise FileNotFoundError(error_msg)
     
     template_manager = DeviceTemplateManager()
     template_manager.load_templates_from_json(json_file)
