@@ -22,7 +22,7 @@ def print_banner():
     print("=" * 80)
     print("AMS-IO-Agent - Pure Claude Code Version")
     print("=" * 80)
-    print("\nThis backend is designed for Claude Code integration via MCP server.")
+    print("\nThis backend runs with direct script execution (no MCP server required).")
 
 
 def print_help():
@@ -44,9 +44,9 @@ def print_help():
     print("      Generate layout SKILL code")
     print("      process_node: T28 or T180")
     print()
-    print("For full workflow, use Claude Code with MCP server:")
-    print("  cd /home/chenzc_intern25/AMS-IO-Agent_processes_combined/mcp_server")
-    print("  python server.py")
+    print("For full workflow, use the orchestrator scripts under:")
+    print("  claude-code-skills/T28/io-ring-orchestrator-T28/scripts/")
+    print("  claude-code-skills/T180/io-ring-orchestrator-T180/scripts/")
     print()
     print("=" * 80)
 
