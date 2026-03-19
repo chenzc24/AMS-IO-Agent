@@ -1,5 +1,7 @@
 # Utility Functions
 
+> Legacy note: migrated from `src/app/utils/README.md`. These utility modules are not part of the current `src/core` package layout.
+
 Utility modules for agent management, configuration, and logging.
 
 ## Components

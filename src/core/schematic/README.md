@@ -4,7 +4,8 @@ Schematic generation module for IO rings and other IC components.
 
 ## Components
 
-- `schematic_generator.py` - Generate SKILL code for schematics
+- `schematic_generator_T28.py` - Generate SKILL code for 28nm schematics
+- `schematic_generator_T180.py` - Generate SKILL code for 180nm schematics
 
 ## Features
 

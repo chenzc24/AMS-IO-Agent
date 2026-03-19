@@ -7,7 +7,10 @@ Core application modules for IO Ring design automation.
 - **layout/** - Layout generation and visualization
 - **schematic/** - Schematic generation
 - **intent_graph/** - Intent graph validation and processing
-- **utils/** - Utility functions and agent factories
+
+## Legacy Notes
+
+- `README_utils_legacy.md` - Historical utility module documentation from `src/app/utils` (module no longer exists under `src/core`)
 
 ## Usage
 
